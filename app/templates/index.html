@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ site_name }} — un solo file XML per DMS Puglia (SPOT)</title>
+<meta name="description" content="Unisci in un unico file XML le esportazioni mensili ISTAT/SPOT delle tue camere. Validato con lo schema ufficiale della Regione Puglia. Nessun dato viene salvato.">
+{% if plausible_domain %}<script defer data-domain="{{ plausible_domain }}" src="https://plausible.io/js/script.js"></script>{% endif %}
+<style>
+:root{
+  --bg:#fbf9f6; --panel:#ffffff; --ink:#16181d; --muted:#5d6470; --line:#e3ded6;
+  --accent:#0f6b6f; --accent-ink:#0a4d50; --accent-soft:#e6f1f1;
+  --ok:#1c6b3f; --ok-soft:#e4f2e9; --warn:#8a5a00; --warn-soft:#fbf0d9;
+  --bad:#a32219; --bad-soft:#fbe7e5;
+  --radius:14px; --shadow:0 1px 2px rgba(16,18,20,.05),0 8px 28px rgba(16,18,20,.06);
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#101215; --panel:#171a1f; --ink:#eceef1; --muted:#9aa3b0; --line:#2a2f37;
+    --accent:#5ec5c6; --accent-ink:#8ad9da; --accent-soft:#152a2b;
+    --ok:#6fd39a; --ok-soft:#12261b; --warn:#e6b95c; --warn-soft:#2a2113;
+    --bad:#f0857c; --bad-soft:#2c1614;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased}
+.wrap{max-width:940px;margin:0 auto;padding:0 20px}
+a{color:var(--accent-ink)}
+h1,h2,h3{line-height:1.25;letter-spacing:-.01em;margin:0 0 .5em}
+h1{font-size:clamp(28px,4.4vw,40px)}
+h2{font-size:22px;margin-top:0}
+p{margin:0 0 1em}
+.small{font-size:14px;color:var(--muted)}
+
+header{border-bottom:1px solid var(--line);background:var(--panel)}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0}
+.brand{display:flex;align-items:center;gap:10px;font-weight:650;letter-spacing:-.01em}
+.mark{width:26px;height:26px;border-radius:7px;background:var(--accent);
+  display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
+.lang{display:flex;gap:2px;border:1px solid var(--line);border-radius:999px;padding:2px}
+.lang button{border:0;background:none;color:var(--muted);font:inherit;font-size:13px;
+  padding:4px 11px;border-radius:999px;cursor:pointer}
+.lang button[aria-pressed="true"]{background:var(--accent);color:#fff}
+
+.hero{padding:56px 0 30px}
+.hero p.lede{font-size:18px;color:var(--muted);max-width:62ch}
+.badges{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
+.badge{font-size:13px;padding:5px 11px;border-radius:999px;border:1px solid var(--line);
+  background:var(--panel);color:var(--muted)}
+.badge strong{color:var(--ink);font-weight:600}
+
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:24px}
+.tool{margin:8px 0 40px}
+
+.drop{display:block;border:2px dashed var(--line);border-radius:12px;padding:34px 20px;text-align:center;
+  transition:border-color .15s,background .15s;cursor:pointer;background:transparent}
+.drop:hover,.drop.hot{border-color:var(--accent);background:var(--accent-soft)}
+.drop h3{margin:0 0 4px;font-size:17px}
+.drop p{margin:0;color:var(--muted);font-size:14px}
+input[type=file]{display:none}
+
+.files{list-style:none;margin:18px 0 0;padding:0;display:grid;gap:6px}
+.files li{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--line);
+  border-radius:9px;font-size:14px}
+.files .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-family:var(--mono);font-size:13px}
+.files .sz{color:var(--muted);font-size:13px}
+.files button{border:0;background:none;color:var(--muted);cursor:pointer;font-size:18px;
+  line-height:1;padding:0 2px}
+.files button:hover{color:var(--bad)}
+
+.actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:18px}
+.btn{border:0;border-radius:10px;padding:12px 20px;font:inherit;font-weight:600;
+  cursor:pointer;background:var(--accent);color:#fff}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.ghost{background:transparent;color:var(--accent-ink);border:1px solid var(--line);font-weight:500}
+.btn.small{padding:9px 15px;font-size:14px}
+
+.result{margin-top:22px;display:none}
+.result.on{display:block}
+.verdict{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border-radius:11px;
+  font-size:15px;margin-bottom:18px}
+.verdict.ok{background:var(--ok-soft);color:var(--ok)}
+.verdict.bad{background:var(--bad-soft);color:var(--bad)}
+.verdict.warn{background:var(--warn-soft);color:var(--warn)}
+.verdict .ico{font-size:18px;line-height:1.4}
+.verdict strong{display:block}
+
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:1px;
+  background:var(--line);border:1px solid var(--line);border-radius:11px;overflow:hidden;margin-bottom:18px}
+.stat{background:var(--panel);padding:13px 15px}
+.stat .k{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.stat .v{font-size:20px;font-weight:650;font-variant-numeric:tabular-nums}
+
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:11px;margin-bottom:18px}
+table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+th,td{padding:8px 13px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left;font-family:var(--mono);font-size:13px}
+thead th{background:var(--accent-soft);color:var(--accent-ink);font-weight:600;
+  position:sticky;top:0;font-size:12.5px}
+tbody tr:last-child td{border-bottom:0}
+tfoot td{font-weight:650;background:var(--bg)}
+details.rows summary{cursor:pointer;color:var(--accent-ink);font-size:14px;margin-bottom:10px}
+
+.notes{border:1px solid var(--line);border-radius:11px;padding:4px 0;margin-bottom:18px}
+.notes h4{margin:12px 16px 8px;font-size:14px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.notes ul{margin:0;padding:0 16px 12px 34px}
+.notes li{font-size:14px;margin-bottom:7px}
+.notes li.crit{color:var(--bad);font-weight:500}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+@media(max-width:720px){.grid2{grid-template-columns:1fr}}
+section.info{padding:14px 0 40px}
+.step{display:flex;gap:14px;margin-bottom:18px}
+.step .n{flex:0 0 26px;height:26px;border-radius:50%;background:var(--accent-soft);
+  color:var(--accent-ink);display:grid;place-items:center;font-size:13px;font-weight:700}
+.step p{margin:0;font-size:15px}
+.step b{display:block}
+code{font-family:var(--mono);font-size:.9em;background:var(--accent-soft);
+  padding:1px 5px;border-radius:4px}
+footer{border-top:1px solid var(--line);padding:26px 0 44px;color:var(--muted);font-size:14px}
+.spin{display:inline-block;width:15px;height:15px;border:2px solid rgba(255,255,255,.35);
+  border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px;margin-right:7px}
+@keyframes sp{to{transform:rotate(360deg)}}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap bar">
+    <div class="brand"><span class="mark">SP</span>{{ site_name }}</div>
+    <div class="lang" role="group" aria-label="Lingua / Language">
+      <button type="button" data-lang="it" aria-pressed="true">IT</button>
+      <button type="button" data-lang="en" aria-pressed="false">EN</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <div class="hero">
+    <h1 data-i18n="h1">Un solo file XML per DMS Puglia</h1>
+    <p class="lede" data-i18n="lede">Il tuo gestionale esporta un file per ogni camera, ma il portale SPOT ne accetta uno solo. Carica i file: li uniamo giorno per giorno e verifichiamo il risultato con lo schema ufficiale della Regione Puglia.</p>
+    <div class="badges">
+      <span class="badge" data-i18n="b1"><strong>Nessun dato salvato</strong> — elaborazione in memoria</span>
+      <span class="badge" data-i18n="b2"><strong>Validato</strong> con movimentogiornaliero-0.6.xsd</span>
+      <span class="badge" data-i18n="b3"><strong>Gratis</strong> — nessuna registrazione</span>
+    </div>
+  </div>
+
+  <div class="card tool">
+    <form id="form">
+      <input type="hidden" name="region" value="{{ default_region }}">
+      <label class="drop" id="drop" for="picker">
+        <h3 data-i18n="dropTitle">Trascina qui i file XML del mese</h3>
+        <p data-i18n="dropSub">oppure clicca per sceglierli — uno per ogni camera/annuncio</p>
+      </label>
+      <input id="picker" type="file" name="files" accept=".xml,text/xml,application/xml" multiple>
+
+      <ul class="files" id="filelist"></ul>
+
+      <div class="actions">
+        <button class="btn" id="go" type="submit" disabled data-i18n="go">Unisci i file</button>
+        <button class="btn ghost small" id="clear" type="button" hidden data-i18n="clear">Svuota</button>
+        <span class="small" id="hint" data-i18n="hint">Massimo {{ max_files }} file.</span>
+      </div>
+    </form>
+
+    <div class="result" id="result" aria-live="polite">
+      <div class="verdict" id="verdict"></div>
+      <div class="stats" id="stats"></div>
+      <div class="actions" style="margin:0 0 18px">
+        <button class="btn" id="dlxml" type="button" data-i18n="dlxml">Scarica XML per SPOT</button>
+        <button class="btn ghost small" id="dlcsv" type="button" data-i18n="dlcsv">Scarica riepilogo CSV</button>
+      </div>
+      <div id="notes"></div>
+      <details class="rows" id="rowsbox">
+        <summary data-i18n="showRows">Mostra il dettaglio giorno per giorno</summary>
+        <div class="tablewrap"><table id="table"></table></div>
+      </details>
+    </div>
+  </div>
+
+  <section class="info">
+    <div class="grid2">
+      <div>
+        <h2 data-i18n="howTitle">Come funziona</h2>
+        <div class="step"><span class="n">1</span><p><b data-i18n="s1t">Esporta come sempre</b><span data-i18n="s1b">Dal gestionale, un file XML per ogni camera.</span></p></div>
+        <div class="step"><span class="n">2</span><p><b data-i18n="s2t">Carica i file qui</b><span data-i18n="s2b">Restano nel browser e nella memoria del server per pochi secondi.</span></p></div>
+        <div class="step"><span class="n">3</span><p><b data-i18n="s3t">Controlla la tabella</b><span data-i18n="s3b">Camere e posti letto totali, giorno per giorno.</span></p></div>
+        <div class="step"><span class="n">4</span><p><b data-i18n="s4t">Carica su SPOT</b><span data-i18n="s4b">Un unico file, entro il 10 del mese successivo.</span></p></div>
+      </div>
+      <div>
+        <h2 data-i18n="whyTitle">Perché non basta incollare i file</h2>
+        <p data-i18n="why1">Ogni file è un elenco giorno per giorno. Messi in fila, il 1° gennaio compare tre volte e il portale rifiuta l'invio.</p>
+        <p data-i18n="why2">Qui il mese viene ricostruito: un blocco per data, i contatori sommati, arrivi e partenze mantenuti come record distinti. I codici cliente vengono resi univoci tra gli annunci, altrimenti SPOT considererebbe due ospiti come la stessa persona.</p>
+        <p class="small" data-i18n="why3">Solo i contatori vengono sommati. Codici e identificativi restano invariati, zeri iniziali compresi.</p>
+      </div>
+    </div>
+
+    <h2 style="margin-top:26px" data-i18n="privTitle">Privacy</h2>
+    <p data-i18n="priv1">I file caricati non vengono mai scritti su disco né registrati nei log. Vengono elaborati in memoria e scartati appena la risposta è pronta. Il file unito e il CSV vengono generati nel tuo browser dai dati della risposta.</p>
+    <p class="small" data-i18n="priv2">I dati statistici SPOT non contengono nomi: sono conteggi e codici. Gli adempimenti verso Alloggiati Web della Polizia di Stato sono separati e questo strumento non li riguarda.</p>
+
+    <h2 style="margin-top:26px" data-i18n="regTitle">Regioni</h2>
+    <p data-i18n="reg1">Ogni regione italiana ha un tracciato diverso. Al momento è supportata solo la <strong>Puglia (DMS/SPOT)</strong>, l'unica per cui abbiamo lo schema ufficiale e file reali di prova.{% if contact_email %} Se ti serve un'altra regione, <a href="mailto:{{ contact_email }}">scrivici</a>.{% endif %}</p>
+    <p class="small">{% for k,n,p in planned %}{{ n }} ({{ p }}){% if not loop.last %} · {% endif %}{% endfor %} — <span data-i18n="reg2">non ancora supportate.</span></p>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p data-i18n="foot1">Strumento indipendente, non affiliato alla Regione Puglia, a Pugliapromozione o a InnovaPuglia. Verifica sempre l'esito del caricamento sul portale.</p>
+    {% if contact_email %}<p class="small"><a href="mailto:{{ contact_email }}">{{ contact_email }}</a></p>{% endif %}
+  </div>
+</footer>
+
+<script>
+const I18N = {
+ it:{h1:"Un solo file XML per DMS Puglia",
+  lede:"Il tuo gestionale esporta un file per ogni camera, ma il portale SPOT ne accetta uno solo. Carica i file: li uniamo giorno per giorno e verifichiamo il risultato con lo schema ufficiale della Regione Puglia.",
+  b1:"<strong>Nessun dato salvato</strong> — elaborazione in memoria",
+  b2:"<strong>Validato</strong> con movimentogiornaliero-0.6.xsd",
+  b3:"<strong>Gratis</strong> — nessuna registrazione",
+  dropTitle:"Trascina qui i file XML del mese",
+  dropSub:"oppure clicca per sceglierli — uno per ogni camera/annuncio",
+  go:"Unisci i file", clear:"Svuota", hint:"Massimo {{ max_files }} file.",
+  dlxml:"Scarica XML per SPOT", dlcsv:"Scarica riepilogo CSV",
+  showRows:"Mostra il dettaglio giorno per giorno",
+  howTitle:"Come funziona", whyTitle:"Perché non basta incollare i file",
+  s1t:"Esporta come sempre", s1b:"Dal gestionale, un file XML per ogni camera.",
+  s2t:"Carica i file qui", s2b:"Restano nel browser e nella memoria del server per pochi secondi.",
+  s3t:"Controlla la tabella", s3b:"Camere e posti letto totali, giorno per giorno.",
+  s4t:"Carica su SPOT", s4b:"Un unico file, entro il 10 del mese successivo.",
+  why1:"Ogni file è un elenco giorno per giorno. Messi in fila, il 1° gennaio compare tre volte e il portale rifiuta l'invio.",
+  why2:"Qui il mese viene ricostruito: un blocco per data, i contatori sommati, arrivi e partenze mantenuti come record distinti. I codici cliente vengono resi univoci tra gli annunci, altrimenti SPOT considererebbe due ospiti come la stessa persona.",
+  why3:"Solo i contatori vengono sommati. Codici e identificativi restano invariati, zeri iniziali compresi.",
+  privTitle:"Privacy",
+  priv1:"I file caricati non vengono mai scritti su disco né registrati nei log. Vengono elaborati in memoria e scartati appena la risposta è pronta. Il file unito e il CSV vengono generati nel tuo browser dai dati della risposta.",
+  priv2:"I dati statistici SPOT non contengono nomi: sono conteggi e codici. Gli adempimenti verso Alloggiati Web della Polizia di Stato sono separati e questo strumento non li riguarda.",
+  regTitle:"Regioni",
+  reg1:"Ogni regione italiana ha un tracciato diverso. Al momento è supportata solo la <strong>Puglia (DMS/SPOT)</strong>, l'unica per cui abbiamo lo schema ufficiale e file reali di prova.",
+  reg2:"non ancora supportate.",
+  foot1:"Strumento indipendente, non affiliato alla Regione Puglia, a Pugliapromozione o a InnovaPuglia. Verifica sempre l'esito del caricamento sul portale.",
+  vOk:"File pronto e conforme allo schema ufficiale.",
+  vOkSub:"Controlla i totali qui sotto, poi caricalo su SPOT.",
+  vBad:"Il file unito non rispetta lo schema ufficiale.",
+  vBadSub:"Il portale lo rifiuterebbe. Dettagli:",
+  vSkip:"File unito. Validazione dello schema non disponibile.",
+  vNotes:"File pronto, ma con alcune segnalazioni da leggere.",
+  nDays:"Giorni", nFiles:"File uniti", nPeriod:"Periodo", nRecoded:"Codici resi univoci",
+  notesTitle:"Segnalazioni", working:"Elaborazione…", errTitle:"Non è stato possibile unire i file"},
+ en:{h1:"One XML file for DMS Puglia",
+  lede:"Your booking system exports one file per room, but the SPOT portal accepts only one. Upload them here: we rebuild the month day by day and check the result against the Region of Puglia's official schema.",
+  b1:"<strong>Nothing stored</strong> — processed in memory",
+  b2:"<strong>Validated</strong> against movimentogiornaliero-0.6.xsd",
+  b3:"<strong>Free</strong> — no sign-up",
+  dropTitle:"Drop this month's XML files here",
+  dropSub:"or click to choose them — one per room listing",
+  go:"Merge the files", clear:"Clear", hint:"Up to {{ max_files }} files.",
+  dlxml:"Download XML for SPOT", dlcsv:"Download CSV summary",
+  showRows:"Show the day-by-day detail",
+  howTitle:"How it works", whyTitle:"Why joining the files doesn't work",
+  s1t:"Export as usual", s1b:"One XML file per room, from your booking system.",
+  s2t:"Upload them here", s2b:"They stay in memory for a few seconds and are discarded.",
+  s3t:"Check the table", s3b:"Total rooms and bed places, day by day.",
+  s4t:"Upload to SPOT", s4b:"One file, by the 10th of the following month.",
+  why1:"Each file is a day-by-day list. Stacked end to end, 1 January appears three times and the portal rejects the submission.",
+  why2:"Here the month is rebuilt: one block per date, counters summed, arrivals and departures kept as separate records. Guest codes are made unique across listings — otherwise SPOT would treat two guests as the same person.",
+  why3:"Only counters are ever added up. Codes and identifiers pass through untouched, leading zeros included.",
+  privTitle:"Privacy",
+  priv1:"Uploaded files are never written to disk and never logged. They are processed in memory and discarded as soon as the response is ready. The merged file and the CSV are built in your browser from that response.",
+  priv2:"SPOT statistical data contains no names — only counts and codes. Reporting to the Polizia di Stato's Alloggiati Web is a separate obligation and this tool has nothing to do with it.",
+  regTitle:"Regions",
+  reg1:"Every Italian region has its own file layout. Only <strong>Puglia (DMS/SPOT)</strong> is supported for now — the one region we have the official schema and real sample files for.",
+  reg2:"not supported yet.",
+  foot1:"Independent tool, not affiliated with Regione Puglia, Pugliapromozione or InnovaPuglia. Always check the upload result on the portal.",
+  vOk:"File ready and valid against the official schema.",
+  vOkSub:"Check the totals below, then upload it to SPOT.",
+  vBad:"The merged file does not satisfy the official schema.",
+  vBadSub:"The portal would reject it. Details:",
+  vSkip:"Files merged. Schema validation was unavailable.",
+  vNotes:"File ready, but there are notes worth reading.",
+  nDays:"Days", nFiles:"Files merged", nPeriod:"Period", nRecoded:"Codes made unique",
+  notesTitle:"Notes", working:"Working…", errTitle:"The files could not be merged"}
+};
+
+let lang = localStorage.getItem("spotlang") || "it";
+let picked = [];
+let last = null;
+
+const $ = s => document.querySelector(s);
+const t = k => (I18N[lang] && I18N[lang][k]) || I18N.it[k] || k;
+
+function applyLang(){
+  document.documentElement.lang = lang;
+  document.querySelectorAll("[data-i18n]").forEach(el=>{
+    const v = I18N[lang][el.dataset.i18n];
+    if (v !== undefined) el.innerHTML = v;
+  });
+  document.querySelectorAll(".lang button").forEach(b=>
+    b.setAttribute("aria-pressed", String(b.dataset.lang===lang)));
+  try{ localStorage.setItem("spotlang", lang);}catch(e){}
+  if (last) render(last);
+}
+document.querySelectorAll(".lang button").forEach(b=>
+  b.addEventListener("click",()=>{lang=b.dataset.lang;applyLang();}));
+
+function fmtSize(n){ return n<1024 ? n+" B" : n<1048576 ? (n/1024).toFixed(0)+" KB"
+  : (n/1048576).toFixed(1)+" MB"; }
+
+function renderFiles(){
+  const ul = $("#filelist"); ul.innerHTML = "";
+  picked.forEach((f,i)=>{
+    const li=document.createElement("li");
+    const nm=document.createElement("span"); nm.className="nm"; nm.textContent=f.name;
+    const sz=document.createElement("span"); sz.className="sz"; sz.textContent=fmtSize(f.size);
+    const x=document.createElement("button"); x.type="button"; x.textContent="×";
+    x.setAttribute("aria-label","remove");
+    x.addEventListener("click",()=>{picked.splice(i,1);renderFiles();});
+    li.append(nm,sz,x); ul.append(li);
+  });
+  $("#go").disabled = picked.length===0;
+  $("#clear").hidden = picked.length===0;
+}
+function addFiles(list){
+  for (const f of list){
+    if (!/\.xml$/i.test(f.name)) continue;
+    if (picked.some(p=>p.name===f.name && p.size===f.size)) continue;
+    picked.push(f);
+  }
+  if (picked.length > {{ max_files }}) picked = picked.slice(0, {{ max_files }});
+  renderFiles();
+}
+$("#picker").addEventListener("change", e=>{addFiles(e.target.files); e.target.value="";});
+$("#clear").addEventListener("click", ()=>{picked=[];renderFiles();$("#result").classList.remove("on");});
+const drop = $("#drop");
+["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{
+  e.preventDefault();drop.classList.add("hot");}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{
+  e.preventDefault();drop.classList.remove("hot");}));
+drop.addEventListener("drop", e=>{ if(e.dataTransfer) addFiles(e.dataTransfer.files); });
+
+function loadState(){ try{ return localStorage.getItem("spotListingMap")||""; }catch(e){ return ""; } }
+function saveState(s){ try{ if(s&&s.prefixes&&Object.keys(s.prefixes).length)
+  localStorage.setItem("spotListingMap", JSON.stringify(s)); }catch(e){} }
+
+$("#form").addEventListener("submit", async e=>{
+  e.preventDefault();
+  if (!picked.length) return;
+  const btn = $("#go"), label = btn.innerHTML;
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>'+t("working");
+  const fd = new FormData();
+  picked.forEach(f=>fd.append("files", f, f.name));
+  fd.append("region", "{{ default_region }}");
+  const st = loadState(); if (st) fd.append("listing_state", st);
+  try{
+    const res = await fetch("/api/merge", {method:"POST", body:fd});
+    const data = await res.json();
+    if (!res.ok){ showError(data.error || ("HTTP "+res.status)); return; }
+    last = data; saveState(data.listing_state); render(data);
+  }catch(err){ showError(String(err)); }
+  finally{ btn.disabled=false; btn.innerHTML=label; }
+});
+
+function showError(msg){
+  last = null;
+  $("#result").classList.add("on");
+  $("#verdict").className = "verdict bad";
+  $("#verdict").innerHTML = '<span class="ico">✕</span><span><strong>'+
+    t("errTitle")+'</strong>'+escapeHtml(msg)+'</span>';
+  $("#stats").innerHTML=""; $("#notes").innerHTML="";
+  $("#rowsbox").hidden = true;
+  $("#dlxml").hidden = true; $("#dlcsv").hidden = true;
+}
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g,
+  c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+function render(d){
+  $("#result").classList.add("on");
+  $("#rowsbox").hidden = false;
+  $("#dlxml").hidden = false; $("#dlcsv").hidden = false;
+
+  const v = $("#verdict"), st = d.schema.status;
+  if (st === "failed"){
+    v.className = "verdict bad";
+    v.innerHTML = '<span class="ico">✕</span><span><strong>'+t("vBad")+'</strong>'+
+      t("vBadSub")+'<br><code>'+escapeHtml(d.schema.detail)+'</code></span>';
+  } else {
+    const notes = d.notes || [];
+    const bad = notes.some(n=>n.severity==="critical");
+    v.className = "verdict " + (bad ? "warn" : "ok");
+    v.innerHTML = '<span class="ico">'+(bad?"!":"✓")+'</span><span><strong>'+
+      (st==="ok" ? (bad ? t("vNotes") : t("vOk")) : t("vSkip"))+'</strong>'+
+      (bad ? "" : t("vOkSub"))+'</span>';
+  }
+
+  const cells = [[t("nPeriod"), d.period.first+" → "+d.period.last],
+                 [t("nDays"), d.days], [t("nFiles"), d.sources.length]];
+  if (d.recoded) cells.push([t("nRecoded"), d.recoded]);
+  $("#stats").innerHTML = cells.map(([k,val])=>
+    '<div class="stat"><div class="k">'+escapeHtml(k)+'</div><div class="v">'+
+    escapeHtml(String(val))+'</div></div>').join("");
+
+  const notes = d.notes || (d.warnings || []).map(w=>({severity:"info",it:w,en:w}));
+  $("#notes").innerHTML = notes.length ? '<div class="notes"><h4>'+t("notesTitle")+
+    ' ('+notes.length+')</h4><ul>'+notes.map(n=>'<li class="'+
+    (n.severity==="critical"?"crit":"")+'">'+escapeHtml(n[lang]||n.en)+'</li>').join("")+
+    '</ul></div>' : "";
+
+  const head = ["date"].concat(d.columns, ["type","records"]);
+  const totals = d.columns.map((_,i)=>d.rows.reduce((a,r)=>a+(+r[i+1]||0),0));
+  $("#table").innerHTML =
+    "<thead><tr>"+head.map(h=>"<th>"+escapeHtml(h)+"</th>").join("")+"</tr></thead>"+
+    "<tbody>"+d.rows.map(r=>"<tr>"+r.map(c=>"<td>"+escapeHtml(String(c))+"</td>").join("")+
+      "</tr>").join("")+"</tbody>"+
+    "<tfoot><tr><td>Σ</td>"+totals.map(x=>"<td>"+x+"</td>").join("")+
+      "<td></td><td>"+d.rows.reduce((a,r)=>a+(+r[r.length-1]||0),0)+"</td></tr></tfoot>";
+}
+
+function download(text, name, mime){
+  const blob = new Blob([text], {type:mime+";charset=utf-8"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = name; document.body.appendChild(a); a.click();
+  document.body.removeChild(a); setTimeout(()=>URL.revokeObjectURL(url), 2000);
+}
+$("#dlxml").addEventListener("click", ()=>{ if(last) download(last.xml, last.filename, "application/xml"); });
+$("#dlcsv").addEventListener("click", ()=>{ if(last)
+  download(last.csv, last.filename.replace(/\.xml$/i,".csv"), "text/csv"); });
+
+applyLang(); renderFiles();
+</script>
+</body>
+</html>

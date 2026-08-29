@@ -1,0 +1,267 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!--Created with Liquid XML Studio Developer Edition 9.0.11.3078 (http://www.liquid-technologies.com)-->
+<xs:schema attributeFormDefault="unqualified" elementFormDefault="qualified" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    <xs:include schemaLocation="datatype-0.6.xsd" />
+    <xs:element name="movimenti">
+        <xs:annotation>
+            <xs:documentation>
+            	Versione XSD: 0.6
+            	   
+            	Avvertenze:                   
+                1. L'attributo (opzionale) "VENDOR" indica il nome (anche in forma abbreviata) del software gestionale usato dalla struttura ricettiva per la generazione del tracciato record
+			</xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="movimento" minOccurs="0" maxOccurs="unbounded">
+                    <xs:annotation>
+                        <xs:documentation>
+                            1. L'attributo (opzionale) "TOTALE" e' la somma di tutti gli element "ARRIVO" e "PARTENZE" presenti nel tracciato record
+                            2. L'attibuto "DATA" indica la data di riferimento del movimento turistico
+						</xs:documentation>
+                    </xs:annotation>
+                    <xs:complexType>
+                        <xs:sequence>
+                            <xs:element name="arrivi" minOccurs="0" maxOccurs="1">
+                                <xs:complexType>
+                                    <xs:sequence>
+                                        <xs:element name="arrivo" maxOccurs="unbounded">
+                                            <xs:annotation>
+                                                <xs:documentation>
+                                                    Rappresenta un arrivo alla struttura ricettiva. Alcune note:
+                                                    
+                                                    1. Caratteristica viaggio, Durata soggiorno, Mezzi di trasporto (sia di arrivo che di movimento) e le Motivazioni viaggio
+                                                       si applicano all'alloggiato di tipo: ospite singolo, capogruppo e capofamiglia. 
+                                                       Le componenti del capogruppo/capofamiglia ereditano lo stesso valore
+                                                 
+                                                    2. Il DAYUSE si ha quando un alloggiato esegue il check-out lo stesso giorno del check-in ed ha trascorso la notte.
+                                                       Si applica all'alloggiato di tipo: ospite singolo, capogruppo e capofamiglia.
+                                                       Le componenti del capogruppo/capofamiglia ereditano lo stesso valore
+                                                    
+                                                    3. L'element ETA indica l'eta' dell'alloggiato al momento dell'arrivo (check-in)
+                                                    
+                                                    4. Nell'element PAESERESIDENZA e COMUNERESIDENZA di ogni componente indicare il relativo Paese o il Comune di residenza (se acquisiti dalla struttura ricettiva);
+                                                       altrimenti riportare, per ciascuna componente, i rispettivi valori dal capogruppo/capofamiglia.
+                                                    
+                                                    5. Per l'alloggiato CAPOGRUPPO o CAPOFAMIGLIA e' obbligatoria la presenza dell'element COMPONENTI mentre per l'alloggiato OSPITE SINGOLO non e' consentita la presenza dell'element COMPONENTI
+                                                    
+                                                    6. TITOLO DI STUDIO esprime l'ultimo titolo conseguito dall'alloggiato
+                                                    
+                                                </xs:documentation>
+                                            </xs:annotation>
+                                            <xs:complexType>
+                                                <xs:sequence>
+                                                    <xs:element name="codiceclientesr">
+                                                        <xs:annotation>
+                                                            <xs:documentation>
+                                                                Rappresenta il codice identificativo dell'alloggiato nel sistema gestionale della struttura ricettiva. 
+                                                                Non deve contenere riferimenti anagrafici alla persona fisica (ad es. codice fiscale).
+                                                                Il sistema SPOT controlla che il codice cliente indicato non si riferisca ad un alloggiato attualmente presente nella struttura ricettiva. In caso affermativo, segnala un errore                                                                     
+                                                            </xs:documentation>
+                                                        </xs:annotation>
+                                                        <xs:simpleType>
+                                                            <xs:restriction base="xs:string">
+                                                                <xs:maxLength value="100" />
+                                                            </xs:restriction>
+                                                        </xs:simpleType>
+                                                    </xs:element>
+                                                    <xs:element name="sesso" type="SessoType" />
+                                                    <xs:element name="cittadinanza" type="CittadinanzaType" />
+                                                    <xs:choice>
+                                                        <xs:element name="paeseresidenza" type="PaeseEsteroType" />
+                                                        <xs:element name="comuneresidenza" type="ComuneAttivoType" />
+                                                    </xs:choice>
+                                                    <xs:element name="occupazionepostoletto" type="SiNoType" />
+                                                    <xs:element name="caratteristicheviaggio" minOccurs="0">
+                                                        <xs:complexType>
+                                                            <xs:sequence>
+                                                                <xs:element name="caratteristica" type="CaratteristicaViaggioType" maxOccurs="unbounded" />
+                                                            </xs:sequence>
+                                                        </xs:complexType>
+                                                    </xs:element>
+                                                    <xs:element name="duratasoggiorno" type="DurataSoggiornoType" minOccurs="0" />
+                                                    <xs:element name="mezzotrasportoarrivo" type="MezzoTrasportoArrivoType" minOccurs="0" />
+                                                    <xs:element name="mezzotrasportomovimento" type="MezzoTrasportoMovimentoType" minOccurs="0" />
+                                                    <xs:element name="motivazioniviaggio" type="MotivazioneViaggioType" minOccurs="0" />
+                                                    <xs:element name="dayuse" type="SiNoType" />
+                                                    <xs:element name="tipologiaalloggiato" type="AlloggiatoType" />
+                                                    <xs:element name="titolostudio" type="TitoloStudioType" minOccurs="0" />
+                                                    <xs:element name="eta" type="EtaType" />
+                                                    <xs:element name="componenti" minOccurs="0">
+                                                        <xs:complexType>
+                                                            <xs:sequence>
+                                                                <xs:element name="componente" maxOccurs="unbounded">
+                                                                    <xs:complexType>
+                                                                        <xs:sequence>
+                                                                            <xs:element name="codiceclientesr">
+                                                                                <xs:annotation>
+                                                                                    <xs:documentation>
+                                                                                        Rappresenta il codice identificativo dell'alloggiato nel sistema gestionale della struttura ricettiva. 
+                                                                                        Non deve contenere riferimenti anagrafici alla persona fisica (ad es. codice fiscale).     
+                                                                                        Il sistema SPOT controlla che il codice cliente indicato non si riferisca ad un alloggiato attualmente presente nella struttura ricettiva. In caso affermativo, segnala un errore                                                                                                                                                             
+                                                                                    </xs:documentation>
+                                                                                </xs:annotation>
+                                                                                <xs:simpleType>
+                                                                                    <xs:restriction base="xs:string">
+                                                                                        <xs:maxLength value="100" />
+                                                                                    </xs:restriction>
+                                                                                </xs:simpleType>
+                                                                            </xs:element>
+                                                                            <xs:element name="sesso" type="SessoType" />
+                                                                            <xs:element name="cittadinanza" type="CittadinanzaType" />
+                                                                            <xs:choice>
+                                                                                <xs:element name="paeseresidenza" type="PaeseEsteroType" />
+                                                                                <xs:element name="comuneresidenza" type="ComuneAttivoType" />
+                                                                            </xs:choice>
+                                                                            <xs:element name="occupazionepostoletto" type="SiNoType" />
+                                                                            <xs:element name="titolostudio" type="TitoloStudioType" minOccurs="0" />
+                                                                            <xs:element name="eta" type="EtaType" />
+                                                                        </xs:sequence>
+                                                                    </xs:complexType>
+                                                                </xs:element>
+                                                            </xs:sequence>
+                                                        </xs:complexType>
+                                                    </xs:element>
+                                                </xs:sequence>
+                                            </xs:complexType>
+                                        </xs:element>
+                                    </xs:sequence>
+                                </xs:complexType>
+                                <xs:unique name="codiceclientearrivo_unique">
+                                    <xs:selector xpath="arrivo/codiceclientesr" />
+                                    <xs:field xpath="." />
+                                </xs:unique>
+                                <xs:unique name="codiceclientecomponente_unique">
+                                    <xs:selector xpath="arrivo/componenti/componente/codiceclientesr" />
+                                    <xs:field xpath="." />
+                                </xs:unique>
+                            </xs:element>
+                            <xs:element name="partenze" minOccurs="0" maxOccurs="1">
+                                <xs:complexType>
+                                    <xs:sequence minOccurs="0">
+                                        <xs:element name="codiceclientesr" minOccurs="0" maxOccurs="unbounded">
+                                            <xs:annotation>
+                                                <xs:documentation>
+                                                    Rappresenta il codice identificativo dell'alloggiato nel sistema gestionale della struttura ricettiva. 
+                                                    E' lo stesso codice indicato nella sezione "movimento/arrivi/arrivo" di questo tracciato record. 
+                                                    E' sempre indicato anche in presenza di alloggiati con caratteristica di DAYUSE.
+                                                                                                        
+                                                    Avvertenza: indicare esclusivamente il codice cliente per alloggiati di tipo "ospite singolo", "capogruppo" o "capofamiglia" PRESENTI nella struttura ricettiva.
+                                                    Per queste ultime due tipologie, il sistema SPOT assegna a tutte le loro rispettive componenti lo stato di "partito"
+                                                </xs:documentation>
+                                            </xs:annotation>
+                                            <xs:complexType>
+                                                <xs:simpleContent>
+                                                    <xs:extension base="xs:string">
+                                                        <xs:attribute name="partenzacapogrupposeparata" type="SiNoType" />
+                                                    </xs:extension>
+                                                </xs:simpleContent>
+                                            </xs:complexType>
+                                        </xs:element>
+                                        <xs:element name="datiqualitativi" minOccurs="0">
+                                            <xs:complexType>
+                                                <xs:sequence>
+                                                    <xs:element name="cliente" minOccurs="0" maxOccurs="unbounded">
+                                                        <xs:complexType>
+                                                            <xs:sequence>
+                                                                <xs:element name="codiceclientesr">
+                                                                    <xs:annotation>
+                                                                        <xs:documentation>
+
+                                                    Rappresenta il codice identificativo dell'alloggiato nel sistema gestionale della struttura ricettiva. 
+
+                                                    E' lo stesso codice indicato nella sezione "movimento/arrivi/arrivo" di questo tracciato record. 
+
+                                                    E' sempre indicato anche in presenza di alloggiati con caratteristica di DAYUSE.
+
+                                                                                                        
+
+                                                    Avvertenza: indicare esclusivamente il codice cliente per alloggiati di tipo "ospite singolo", "capogruppo" o "capofamiglia" PRESENTI nella struttura ricettiva.
+
+                                                    Per queste ultime due tipologie, il sistema SPOT assegna a tutte le loro rispettive componenti lo stato di "partito"
+
+                                                </xs:documentation>
+                                                                    </xs:annotation>
+                                                                    <xs:simpleType>
+                                                                        <xs:restriction base="xs:string">
+                                                                            <xs:maxLength value="100" />
+                                                                        </xs:restriction>
+                                                                    </xs:simpleType>
+                                                                </xs:element>
+                                                                <xs:element name="mezzotrasportoarrivo" type="MezzoTrasportoArrivoType" minOccurs="0" />
+                                                                <xs:element name="mezzotrasportomovimento" type="MezzoTrasportoMovimentoType" minOccurs="0" />
+                                                                <xs:element name="motivazioniviaggio" type="MotivazioneViaggioType" minOccurs="0" />
+                                                                <xs:element name="titolostudio" type="TitoloStudioType" minOccurs="0" />
+                                                                <xs:element name="caratteristicheviaggio" minOccurs="0">
+                                                                    <xs:complexType>
+                                                                        <xs:sequence>
+                                                                            <xs:element name="caratteristica" type="CaratteristicaViaggioType" maxOccurs="unbounded" />
+                                                                        </xs:sequence>
+                                                                    </xs:complexType>
+                                                                </xs:element>
+                                                            </xs:sequence>
+                                                        </xs:complexType>
+                                                    </xs:element>
+                                                </xs:sequence>
+                                            </xs:complexType>
+                                        </xs:element>
+                                    </xs:sequence>
+                                </xs:complexType>
+                                <xs:unique name="codiceclientepartenza_unique">
+                                    <xs:selector xpath="codiceclientesr" />
+                                    <xs:field xpath="." />
+                                </xs:unique>
+                            </xs:element>
+                            <xs:element name="datistruttura" minOccurs="0" maxOccurs="1">
+                                <xs:complexType>
+                                    <xs:sequence>
+                                        <xs:element name="cameredisponibili">
+                                            <xs:annotation>
+                                                <xs:documentation>
+                                                    Indicare il numero di camere effettivamente disponibili per la vendita nel giorno in esame.
+                                                    Se tale valore non e' noto indicare il numero di unita' abitative oppure il numero degli alloggiamenti oppure il numero di piazzole oppure il numero dei locali.
+                                                    In caso di esercizio chiuso il valore deve essere uguale a zero
+                                                </xs:documentation>
+                                            </xs:annotation>
+                                            <xs:simpleType>
+                                                <xs:restriction base="xs:nonNegativeInteger" />
+                                            </xs:simpleType>
+                                        </xs:element>
+                                        <xs:element name="postilettodisponibili">
+                                            <xs:annotation>
+                                                <xs:documentation>
+                                                    Indicare il numero dei posti letto AL NETTO DEI POSTI LETTO AGGIUNTIVI effettivamente disponibili per la vendita nel giorno in esame.
+                                                    Un letto matrimoniale deve essere conteggiato come due posti letto. Per i campeggi o villaggi turistici, se non e' noto il numero effettivo dei posti considerare 4 posti letto per piazzola
+                                                    In caso di esercizio chiuso il valore deve essere uguale a zero
+                                                </xs:documentation>
+                                            </xs:annotation>
+                                            <xs:simpleType>
+                                                <xs:restriction base="xs:nonNegativeInteger" />
+                                            </xs:simpleType>
+                                        </xs:element>
+                                        <xs:element name="camereoccupate">
+                                            <xs:annotation>
+                                                <xs:documentation>
+                                                    Indicare il numero di camere effettivamente occupate nel giorno in esame.
+                                                    Se tale valore non e' noto indicare il numero di unita' abitative oppure il numero degli alloggiamenti oppure il numero di piazzole oppure il numero dei locali
+                                                    In presenza di esercizio chiuso il valore deve essere uguale a zero. In tutti i casi il valore deve essere minore o uguale al numero di camere disponibili                                                   
+                                                </xs:documentation>
+                                            </xs:annotation>
+                                            <xs:simpleType>
+                                                <xs:restriction base="xs:nonNegativeInteger" />
+                                            </xs:simpleType>
+                                        </xs:element>
+                                    </xs:sequence>
+                                </xs:complexType>
+                            </xs:element>
+                        </xs:sequence>
+                        <xs:attribute name="type" type="MovimentoType" use="required" />
+                        <xs:attribute name="data" type="xs:date" use="required" />
+                        <xs:attribute name="totale" type="xs:int" use="optional" />
+                    </xs:complexType>
+                </xs:element>
+            </xs:sequence>
+            <xs:attribute name="vendor" type="xs:string" use="optional" />
+        </xs:complexType>
+    </xs:element>
+</xs:schema>
