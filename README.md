@@ -36,6 +36,12 @@ tool's**.
 
 ---
 
+## Contact and lightweight metrics
+
+The landing page includes a simple support form for issues, questions, suggestions and improvements. It accepts input from visitors without storing personal data, and it records only anonymous counters for operational reporting.
+
+The service now writes a small XML metrics file with counters such as total visitors, actions, successful/failed actions, satisfied/not satisfied responses, and basic conversion rates. The file is protected with a file lock and rewritten atomically to avoid corruption when multiple requests arrive at once. This is intentionally limited to counts and status values only; no visitor names, email addresses or uploaded document contents are retained.
+
 ## Deploy
 
 ```bash

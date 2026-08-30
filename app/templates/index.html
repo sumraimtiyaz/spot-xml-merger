@@ -115,6 +115,16 @@ details.rows summary{cursor:pointer;color:var(--accent-ink);font-size:14px;margi
 
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:22px}
 @media(max-width:720px){.grid2{grid-template-columns:1fr}}
+.contact-form{display:grid;gap:16px;margin-top:16px}
+.field-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.contact-form label{display:grid;gap:8px;color:var(--muted);font-size:14px}
+.contact-form input,.contact-form select,.contact-form textarea{
+  width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--bg);
+  color:var(--ink);font:inherit
+}
+.contact-form textarea{resize:vertical;min-height:140px}
+.contact-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+#contact-status{min-height:1.3em}
 section.info{padding:14px 0 40px}
 .step{display:flex;gap:14px;margin-bottom:18px}
 .step .n{flex:0 0 26px;height:26px;border-radius:50%;background:var(--accent-soft);
@@ -211,6 +221,42 @@ footer{border-top:1px solid var(--line);padding:26px 0 44px;color:var(--muted);f
     <h2 style="margin-top:26px" data-i18n="regTitle">Regioni</h2>
     <p data-i18n="reg1">Ogni regione italiana ha un tracciato diverso. Al momento è supportata solo la <strong>Puglia (DMS/SPOT)</strong>, l'unica per cui abbiamo lo schema ufficiale e file reali di prova.{% if contact_email %} Se ti serve un'altra regione, <a href="mailto:{{ contact_email }}">scrivici</a>.{% endif %}</p>
     <p class="small">{% for k,n,p in planned %}{{ n }} ({{ p }}){% if not loop.last %} · {% endif %}{% endfor %} — <span data-i18n="reg2">non ancora supportate.</span></p>
+
+    <div class="card" id="contact" style="margin-top:26px">
+      <h2 data-i18n="contactTitle">Contatti e supporto</h2>
+      <p data-i18n="contactIntro">Hai un problema, una richiesta, un suggerimento o un miglioramento da proporre? Scrivici qui sotto e ti risponderemo.</p>
+      <form id="contact-form" class="contact-form" novalidate>
+        <div class="field-grid">
+          <label>
+            <span data-i18n="contactName">Nome</span>
+            <input type="text" name="name" maxlength="120" placeholder="Mario Rossi">
+          </label>
+          <label>
+            <span data-i18n="contactEmail">Email</span>
+            <input type="email" name="email" maxlength="160" placeholder="mario@example.com">
+          </label>
+        </div>
+        <label>
+          <span data-i18n="contactReason">Tipo di richiesta</span>
+          <select name="category">
+            <option value="issue" data-i18n="issueOpt">Problema / bug</option>
+            <option value="concern" data-i18n="concernOpt">Preoccupazione / domanda</option>
+            <option value="suggestion" data-i18n="suggestionOpt">Suggerimento</option>
+            <option value="improvement" data-i18n="improvementOpt">Miglioria</option>
+            <option value="other" data-i18n="otherOpt">Altro</option>
+          </select>
+        </label>
+        <label>
+          <span data-i18n="contactMessage">Messaggio</span>
+          <textarea name="message" rows="6" maxlength="2000" required placeholder="Descrivi il problema o la proposta..." data-i18n="contactMessagePlaceholder"></textarea>
+        </label>
+        <div class="contact-actions">
+          <button class="btn" type="submit" data-i18n="contactSend">Invia richiesta</button>
+          {% if contact_email %}<a class="btn ghost" href="mailto:{{ contact_email }}" data-i18n="contactMail">Scrivici via email</a>{% endif %}
+        </div>
+        <p class="small" id="contact-status" aria-live="polite"></p>
+      </form>
+    </div>
   </section>
 </main>
 
@@ -247,6 +293,20 @@ const I18N = {
   regTitle:"Regioni",
   reg1:"Ogni regione italiana ha un tracciato diverso. Al momento è supportata solo la <strong>Puglia (DMS/SPOT)</strong>, l'unica per cui abbiamo lo schema ufficiale e file reali di prova.",
   reg2:"non ancora supportate.",
+  contactTitle:"Contatti e supporto",
+  contactIntro:"Hai un problema, una richiesta, un suggerimento o un miglioramento da proporre? Scrivici qui sotto e ti risponderemo.",
+  contactName:"Nome",
+  contactEmail:"Email",
+  contactReason:"Tipo di richiesta",
+  contactMessage:"Messaggio",
+  contactMessagePlaceholder:"Descrivi il problema o la proposta...",
+  issueOpt:"Problema / bug",
+  concernOpt:"Preoccupazione / domanda",
+  suggestionOpt:"Suggerimento",
+  improvementOpt:"Miglioria",
+  otherOpt:"Altro",
+  contactSend:"Invia richiesta",
+  contactMail:"Scrivici via email",
   foot1:"Strumento indipendente, non affiliato alla Regione Puglia, a Pugliapromozione o a InnovaPuglia. Verifica sempre l'esito del caricamento sul portale.",
   vOk:"File pronto e conforme allo schema ufficiale.",
   vOkSub:"Controlla i totali qui sotto, poi caricalo su SPOT.",
@@ -280,6 +340,20 @@ const I18N = {
   regTitle:"Regions",
   reg1:"Every Italian region has its own file layout. Only <strong>Puglia (DMS/SPOT)</strong> is supported for now — the one region we have the official schema and real sample files for.",
   reg2:"not supported yet.",
+  contactTitle:"Contact and support",
+  contactIntro:"Have an issue, a request, a suggestion or an improvement to propose? Send us a message below and we'll get back to you.",
+  contactName:"Name",
+  contactEmail:"Email",
+  contactReason:"Request type",
+  contactMessage:"Message",
+  contactMessagePlaceholder:"Describe the issue or idea...",
+  issueOpt:"Issue / bug",
+  concernOpt:"Concern / question",
+  suggestionOpt:"Suggestion",
+  improvementOpt:"Improvement",
+  otherOpt:"Other",
+  contactSend:"Send request",
+  contactMail:"Email us",
   foot1:"Independent tool, not affiliated with Regione Puglia, Pugliapromozione or InnovaPuglia. Always check the upload result on the portal.",
   vOk:"File ready and valid against the official schema.",
   vOkSub:"Check the totals below, then upload it to SPOT.",
@@ -311,6 +385,42 @@ function applyLang(){
 }
 document.querySelectorAll(".lang button").forEach(b=>
   b.addEventListener("click",()=>{lang=b.dataset.lang;applyLang();}));
+
+const contactForm = document.getElementById("contact-form");
+if (contactForm) {
+  contactForm.addEventListener("submit", async e => {
+  e.preventDefault();
+  const status = document.getElementById("contact-status");
+  const data = Object.fromEntries(new FormData(contactForm).entries());
+  if (!String(data.message || "").trim()) {
+    status.textContent = lang === "en" ? "Please add a message." : "Inserisci un messaggio.";
+    status.style.color = "var(--bad)";
+    return;
+  }
+  const submit = contactForm.querySelector('button[type="submit"]');
+  const text = submit.textContent;
+  submit.disabled = true; submit.textContent = lang === "en" ? "Sending…" : "Invio…";
+  try {
+    const res = await fetch("/api/contact", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(data)
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(payload.error || (lang === "en" ? "Unable to send the message." : "Impossibile inviare il messaggio."));
+    }
+    contactForm.reset();
+    status.textContent = payload.message || (lang === "en" ? "Thanks — your request has been received." : "Grazie — la tua richiesta è stata ricevuta.");
+    status.style.color = "var(--ok)";
+  } catch (err) {
+    status.textContent = String(err.message || err);
+    status.style.color = "var(--bad)";
+  } finally {
+    submit.disabled = false; submit.textContent = text;
+  }
+  });
+}
 
 function fmtSize(n){ return n<1024 ? n+" B" : n<1048576 ? (n/1024).toFixed(0)+" KB"
   : (n/1048576).toFixed(1)+" MB"; }

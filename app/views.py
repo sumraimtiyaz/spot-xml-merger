@@ -7,6 +7,12 @@ from flask import (Blueprint, current_app, jsonify, render_template, request)
 
 from .accounts import Capability, can, current_actor
 from .messages import localise_all
+from .metrics import (
+    metrics_payload,
+    record_action,
+    record_contact_submission,
+    record_visitor,
+)
 from .engine.merge_istat import MergeError
 from .regions import DEFAULT_REGION, PLANNED, enabled_regions, get_region
 
@@ -51,6 +57,7 @@ def no_store(response):
 
 @bp.get("/")
 def index():
+    record_visitor()
     return render_template(
         "index.html",
         site_name=current_app.config["SITE_NAME"],
@@ -67,6 +74,11 @@ def index():
 @bp.get("/healthz")
 def healthz():
     return jsonify(status="ok")
+
+
+@bp.get("/api/metrics")
+def api_metrics():
+    return jsonify(metrics_payload())
 
 
 @bp.post("/api/merge")
@@ -128,13 +140,16 @@ def api_merge():
     try:
         result = region.merge(payload, listing_state=state)
     except MergeError as exc:
+        record_action(success=False)
         return jsonify(error=str(exc)), 422
     except Exception:  # noqa: BLE001
         current_app.logger.exception("merge failed")
+        record_action(success=False)
         return jsonify(
             error="Something went wrong while merging. The files were not "
                   "stored; nothing to clean up."), 500
 
+    record_action(success=True)
     return jsonify(
         region=region.key,
         filename=result["filename"],
@@ -153,6 +168,47 @@ def api_merge():
                 "detail": result["schema_detail"],
                 "name": region.schema_name},
     )
+
+
+@bp.post("/api/feedback")
+def api_feedback():
+    payload = request.get_json(silent=True) or request.form or {}
+    raw = payload.get("satisfied")
+    if raw is None:
+        return jsonify(error="The satisfied flag is required."), 400
+    satisfied = str(raw).strip().lower() in {"1", "true", "yes", "y", "ok"}
+    record_action(success=True, satisfied=satisfied)
+    return jsonify(ok=True, satisfied=satisfied)
+
+
+@bp.post("/api/contact")
+def api_contact():
+    payload = request.get_json(silent=True) or request.form or {}
+    name = (payload.get("name") or "").strip()
+    email = (payload.get("email") or "").strip()
+    category = (payload.get("category") or "other").strip().lower()
+    message = (payload.get("message") or "").strip()
+
+    if not message:
+        return jsonify(error="Please add a message before submitting the form."), 400
+
+    record_contact_submission(category)
+    if email:
+        current_app.logger.info("contact form from %s <%s> (%s): %s",
+                                name or "anonymous",
+                                email,
+                                category,
+                                message[:200])
+    else:
+        current_app.logger.info("contact form from %s (%s): %s",
+                                name or "anonymous",
+                                category,
+                                message[:200])
+
+    return jsonify(
+        ok=True,
+        redirect="/",
+        message="Thanks — your message has been received. We will review it soon.")
 
 
 @bp.errorhandler(413)

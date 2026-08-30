@@ -34,7 +34,7 @@ class Config:
     # A month of daily blocks for one listing is a few hundred KB even with
     # guests, so these are generous.
     MAX_CONTENT_LENGTH = _int("MAX_UPLOAD_BYTES", 12 * 1024 * 1024)
-    MAX_FILES = _int("MAX_FILES", 50)
+    MAX_FILES = _int("MAX_FILES", 20)
 
     # --- abuse control ----------------------------------------------------
     RATE_LIMIT_PER_HOUR = _int("RATE_LIMIT_PER_HOUR", 60)
