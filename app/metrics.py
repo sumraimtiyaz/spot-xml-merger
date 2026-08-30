@@ -33,13 +33,26 @@ _METRIC_KEYS = (
     "contact_other",
 )
 
+_MEMORY_METRICS: dict[str, int] = {}
+
 
 def _metrics_path() -> Path:
-    return Path(__file__).resolve().with_name("site_metrics.xml")
+    # Serverless deployments (including Vercel) often mount the source tree as
+    # read-only. Store metrics in a writable temp location instead of beside the
+    # app code, and fall back to an in-memory store if the filesystem is not
+    # writable for the current runtime.
+    base_dir = os.environ.get("METRICS_DIR") or tempfile.gettempdir()
+    return Path(base_dir) / "spot-xml-merger-site-metrics.xml"
 
 
 def _default_metrics() -> dict[str, int]:
     return {key: 0 for key in _METRIC_KEYS}
+
+
+def _memory_metrics() -> dict[str, int]:
+    values = _default_metrics()
+    values.update(_MEMORY_METRICS)
+    return values
 
 
 def _as_int(value, default=0) -> int:
@@ -107,28 +120,47 @@ def _write_metrics_file(path: Path, values: dict[str, int]) -> None:
 
 def ensure_metrics_file() -> Path:
     path = _metrics_path()
-    if not path.exists():
-        data = _default_metrics()
-        _write_metrics_file(path, data)
+    if path.exists():
+        return path
+    try:
+        _write_metrics_file(path, _default_metrics())
+    except (OSError, PermissionError, RuntimeError, ValueError):
+        # Serverless runtimes can make the project tree read-only or mount it
+        # into an isolated filesystem. The in-memory fallback below keeps the
+        # endpoints alive instead of crashing the invocation.
+        return path
     return path
 
 
 def read_metrics() -> dict[str, int]:
-    path = ensure_metrics_file()
-    with _locked_metrics(path):
-        return _read_metrics_file(path)
+    try:
+        path = ensure_metrics_file()
+        with _locked_metrics(path):
+            return _read_metrics_file(path)
+    except (OSError, PermissionError, RuntimeError, ValueError):
+        return _memory_metrics()
 
 
 def update_metrics(**changes: int) -> dict[str, int]:
-    path = ensure_metrics_file()
-    with _locked_metrics(path):
-        values = _read_metrics_file(path)
+    values = _memory_metrics()
+    try:
+        path = ensure_metrics_file()
+        with _locked_metrics(path):
+            values = _read_metrics_file(path)
+            for key, delta in changes.items():
+                if key not in values:
+                    continue
+                values[key] = int(values.get(key, 0)) + int(delta)
+            _write_metrics_file(path, values)
+    except (OSError, PermissionError, RuntimeError, ValueError):
+        values = _memory_metrics()
         for key, delta in changes.items():
             if key not in values:
                 continue
             values[key] = int(values.get(key, 0)) + int(delta)
-        _write_metrics_file(path, values)
-        return values
+    _MEMORY_METRICS.clear()
+    _MEMORY_METRICS.update(values)
+    return values.copy()
 
 
 def record_visitor() -> dict[str, int]:

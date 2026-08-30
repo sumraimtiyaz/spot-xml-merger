@@ -4,10 +4,12 @@ import io
 import json
 import os
 import sys
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app import create_app  # noqa: E402
+from app import metrics as metrics_module  # noqa: E402
 from app.config import DevConfig  # noqa: E402
 
 HEAD = ('<?xml version="1.0" encoding="utf-8"?>\n<movimenti '
@@ -94,6 +96,30 @@ def test_health():
     c = Client()
     r = c.c.get("/healthz")
     return [] if r.status_code == 200 and r.get_json()["status"] == "ok" else ["unhealthy"]
+
+
+def test_metrics_fallback_when_disk_writes_fail():
+    original_path = metrics_module._metrics_path
+    original_write = metrics_module._write_metrics_file
+    try:
+        metrics_module._MEMORY_METRICS.clear()
+        metrics_module._metrics_path = lambda: Path("/nonexistent") / "site_metrics.xml"
+
+        def boom(_path, _values):
+            raise PermissionError("read-only filesystem")
+
+        metrics_module._write_metrics_file = boom
+        metrics = metrics_module.record_visitor()
+        payload = metrics_module.metrics_payload()
+        if metrics.get("total_visitors") != 1:
+            return ["visitor count not tracked in memory"]
+        if payload.get("total_visitors") != 1:
+            return ["payload lost the in-memory visitor count"]
+        return []
+    finally:
+        metrics_module._metrics_path = original_path
+        metrics_module._write_metrics_file = original_write
+        metrics_module._MEMORY_METRICS.clear()
 
 
 def test_merge_happy():
@@ -257,6 +283,7 @@ if __name__ == "__main__":
     tests = [
         ("Landing page renders with no-store headers", test_landing),
         ("Health endpoint", test_health),
+        ("Metrics fallback handles write failures", test_metrics_fallback_when_disk_writes_fail),
         ("Three listings merge, sum and validate", test_merge_happy),
         ("Colliding guest codes are re-coded", test_guest_code_collision),
         ("Guest codes stay stable across months", test_listing_state_roundtrip),
