@@ -922,8 +922,8 @@ def serialise_xml(root, marker=True):
     indent(root)
     body = ET.tostring(root, encoding="unicode")
     parts = ['<?xml version="1.0" encoding="utf-8"?>\n']
-    if marker:
-        parts.append(MARKER_COMMENT + "\n")
+    # if marker:
+    #     parts.append(MARKER_COMMENT + "\n")
     parts.append(body.rstrip())
     parts.append("\n")
     return "".join(parts)
