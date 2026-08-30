@@ -62,5 +62,6 @@ class ProdConfig(Config):
 
 
 def get_config():
-    env = os.environ.get("APP_ENV", "dev").lower()
+    default_env = "production" if os.environ.get("VERCEL") else "dev"
+    env = os.environ.get("APP_ENV", default_env).lower()
     return ProdConfig if env in {"prod", "production"} else DevConfig
