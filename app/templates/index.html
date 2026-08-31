@@ -166,11 +166,15 @@ footer{border-top:1px solid var(--line);padding:26px 0 44px;color:var(--muted);f
   </div>
 
   <div class="card tool">
+    <div class="mode-switch" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px">
+      <button type="button" class="mode-btn active" data-mode="merge" style="border:1px solid var(--line);background:var(--accent);color:#fff;border-radius:10px;padding:10px 16px;font:inherit;font-weight:600;cursor:pointer;">Merge XML files</button>
+      <button type="button" class="mode-btn" data-mode="generate" style="border:1px solid var(--line);background:transparent;color:var(--accent-ink);border-radius:10px;padding:10px 16px;font:inherit;font-weight:600;cursor:pointer;">Generate XML from CSV/Excel</button>
+    </div>
     <form id="form">
       <input type="hidden" name="region" value="{{ default_region }}">
       <label class="drop" id="drop" for="picker">
-        <h3 data-i18n="dropTitle">Trascinare qui i file XML del mese</h3>
-        <p data-i18n="dropSub">oppure clicca per sceglierli — uno per ogni camera/annuncio</p>
+        <h3 id="drop-title" data-i18n="dropTitle">Trascinare qui i file XML del mese</h3>
+        <p id="drop-sub" data-i18n="dropSub">oppure clicca per sceglierli — uno per ogni camera/annuncio</p>
       </label>
       <input id="picker" type="file" name="files" accept=".xml,text/xml,application/xml" multiple>
 
@@ -184,7 +188,24 @@ footer{border-top:1px solid var(--line);padding:26px 0 44px;color:var(--muted);f
       </div>
     </form>
 
-    <div class="result" id="result" aria-live="polite">
+  <div class="notes" id="generator-guidance" style="margin-top:18px; display:none">
+    <h4 data-i18n="csvTemplateTitle">Template CSV richiesto</h4>
+    <ul>
+      <li><strong>Required columns:</strong> date, codiceclientesr, sesso, cittadinanza, comuneresidenza, occupazionepostoletto, dayuse, tipologiaalloggiato, eta</li>
+      <li>Optional: camereDisponibili, postilettoDisponibili, camereOccupate</li>
+      <li>Use a single date per row and keep values clean (for example: 2026-06-01).</li>
+    </ul>
+    <div id="required-columns" style="padding:0 16px 12px"></div>
+    <div id="custom-mapping-panel" style="padding:0 16px 12px; display:none">
+      <div style="margin-bottom:8px; font-weight:600">Match your spreadsheet columns to the required SPOT fields</div>
+      <div id="mapping-grid" style="display:grid;gap:8px"></div>
+    </div>
+    <div style="padding:0 16px 12px">
+      <a class="btn ghost small cta-link" href="/api/sample-csv" download="spot-template.csv" data-i18n="downloadTemplate">Download sample CSV</a>
+    </div>
+  </div>
+
+  <div class="result" id="result" aria-live="polite">
       <div class="verdict" id="verdict"></div>
       <div class="stats" id="stats"></div>
       <div class="actions" style="margin:0 0 18px">
@@ -278,7 +299,12 @@ const I18N = {
   b3:"<strong>Gratis</strong> — nessuna registrazione",
   dropTitle:"Trascinare qui i file XML del mese",
   dropSub:"oppure clicca per sceglierli — uno per ogni camera/annuncio",
-  go:"Unisci i file", clear:"Svuota", hint:"Massimo {{ max_files }} file.", limitCta:"Need a larger batch? Ask us here",
+  dropTitleCsv:"Carica un CSV o Excel con i dati del mese",
+  dropSubCsv:"oppure clicca per scegliere il file — le colonne verranno validate e convertite in XML SPOT",
+  csvTemplateTitle:"Template CSV richiesto",
+  downloadTemplate:"Scarica CSV di esempio",
+  go:"Unisci i file", goCsv:"Genera XML",
+  clear:"Svuota", hint:"Massimo {{ max_files }} file.", limitCta:"Need a larger batch? Ask us here",
   dlxml:"Scarica XML per SPOT", dlcsv:"Scarica riepilogo CSV",
   showRows:"Mostra il dettaglio giorno per giorno",
   howTitle:"Come funziona", whyTitle:"Perché non basta incollare i file",
@@ -325,7 +351,12 @@ const I18N = {
   b3:"<strong>Free</strong> — no sign-up",
   dropTitle:"Drop month's XML files here",
   dropSub:"or click to choose them — one per room listing",
-  go:"Merge the files", clear:"Clear", hint:"Up to {{ max_files }} files.", limitCta:"Need a larger batch? Ask us here",
+  dropTitleCsv:"Upload a CSV or Excel file with the month data",
+  dropSubCsv:"or click to choose the file — columns will be validated and turned into SPOT XML",
+  csvTemplateTitle:"Required CSV template",
+  downloadTemplate:"Download sample CSV",
+  go:"Merge the files", goCsv:"Generate XML",
+  clear:"Clear", hint:"Up to {{ max_files }} files.", limitCta:"Need a larger batch? Ask us here",
   dlxml:"Download XML for SPOT", dlcsv:"Download CSV summary",
   showRows:"Show the day-by-day detail",
   howTitle:"How it works", whyTitle:"Why joining the files doesn't work",
@@ -370,9 +401,170 @@ const I18N = {
 let lang = localStorage.getItem("spotlang") || "it";
 let picked = [];
 let last = null;
+let currentMode = "merge";
 
 const $ = s => document.querySelector(s);
 const t = k => (I18N[lang] && I18N[lang][k]) || I18N.it[k] || k;
+
+const REQUIRED_FIELDS = [
+  "date",
+  "codiceclientesr",
+  "sesso",
+  "cittadinanza",
+  "comuneresidenza",
+  "occupazionepostoletto",
+  "dayuse",
+  "tipologiaalloggiato",
+  "eta",
+];
+
+function normalizeHeader(value){
+  return String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+function getPreferredMappingFor(field, headers){
+  const expected = normalizeHeader(field);
+  const aliasMap = {
+    date: ["date", "data", "day", "giorno"],
+    codiceclientesr: ["codiceclientesr", "customercode", "customercode", "guestcode", "code", "cliente"],
+    sesso: ["sesso", "sex", "gender"],
+    cittadinanza: ["cittadinanza", "citizenship", "nationality"],
+    comuneresidenza: ["comuneresidenza", "residence", "citycode", "city", "residenza"],
+    occupazionepostoletto: ["occupazionepostoletto", "occupancy", "occupiedbed", "occupazionepostoletto"],
+    dayuse: ["dayuse", "dayuseflag", "dayuseyn", "day_use"],
+    tipologiaalloggiato: ["tipologiaalloggiato", "guesttype", "guestcategory", "roomtype"],
+    eta: ["eta", "age", "years"],
+  };
+  const candidates = aliasMap[field] || [expected];
+  for (const header of headers) {
+    const normalized = normalizeHeader(header);
+    if (candidates.includes(normalized)) return header;
+  }
+  const direct = headers.find(header => normalizeHeader(header) === expected);
+  if (direct) return direct;
+  return "";
+}
+
+function renderRequiredColumns(headers){
+  const root = document.getElementById("required-columns");
+  if (!root) return;
+  const items = REQUIRED_FIELDS.map(field => {
+    const matched = headers.length ? getPreferredMappingFor(field, headers) : "";
+    const status = matched ? "OK" : "Missing";
+    const label = matched ? `Mapped: ${matched}` : "Missing required column";
+    return '<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)"><strong>' + escapeHtml(field) + '</strong><span style="color:' + (matched ? 'var(--ok)' : 'var(--bad)') + ';font-size:13px">' + escapeHtml(status) + '</span></div>' +
+      (matched ? '<div style="font-size:12px;color:var(--muted)">' + escapeHtml(label) + '</div>' : '<div style="font-size:12px;color:var(--muted)">Expected header is missing</div>');
+  }).join("");
+  root.innerHTML = items;
+}
+
+function renderMappingGrid(headers){
+  const grid = document.getElementById("mapping-grid");
+  const panel = document.getElementById("custom-mapping-panel");
+  if (!grid || !panel) return;
+  if (!headers.length) {
+    panel.style.display = "none";
+    return;
+  }
+  panel.style.display = "block";
+  const options = [
+    '<option value="">-- not mapped --</option>',
+    ...headers.map(header => '<option value="' + escapeHtml(header) + '">' + escapeHtml(header) + '</option>')
+  ].join("");
+
+  const map = {};
+  REQUIRED_FIELDS.forEach(field => {
+    const preferred = getPreferredMappingFor(field, headers);
+    map[field] = preferred;
+  });
+  window.currentFieldMap = map;
+
+  grid.innerHTML = REQUIRED_FIELDS.map(field => {
+    const selected = map[field] || "";
+    return '<label style="display:grid;gap:6px;font-size:13px"><span style="font-weight:600">' + escapeHtml(field) + '</span><select data-field="' + escapeHtml(field) + '" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)">' + options.replace('value="' + escapeHtml(selected) + '"', 'value="' + escapeHtml(selected) + '" selected') + '</select></label>';
+  }).join("");
+
+  grid.querySelectorAll("select").forEach(select => {
+    select.addEventListener("change", () => {
+      const field = select.dataset.field;
+      const next = select.value || "";
+      const mapValue = window.currentFieldMap || {};
+      mapValue[field] = next;
+      window.currentFieldMap = mapValue;
+    });
+  });
+}
+
+function refreshGenerateGuidance(file){
+  const panel = document.getElementById("generator-guidance");
+  const required = document.getElementById("required-columns");
+  const mappingPanel = document.getElementById("custom-mapping-panel");
+  if (!panel || !required || !mappingPanel) return;
+
+  if (!file) {
+    panel.style.display = "none";
+    return;
+  }
+  panel.style.display = "block";
+
+  const isCsv = /\.csv$/i.test(file.name);
+  if (!isCsv) {
+    required.innerHTML = '<div style="color:var(--muted)">Excel files are supported. Keep the standard column names below for the smoothest result.</div>';
+    mappingPanel.style.display = "none";
+    window.currentFieldMap = {};
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    const text = String(reader.result || "");
+    const lines = text.split(/\r?\n/).filter(Boolean);
+    const first = lines[0] || "";
+    const headers = first.split(",").map(cell => cell.trim().replace(/^"|"$/g, ""));
+    renderRequiredColumns(headers);
+    renderMappingGrid(headers);
+  };
+  reader.readAsText(file);
+}
+
+function setMode(mode){
+  currentMode = mode;
+  const isMerge = mode === "merge";
+  const generatorGuidance = document.getElementById("generator-guidance");
+  const modeButtons = document.querySelectorAll(".mode-btn");
+  modeButtons.forEach(btn => {
+    const active = btn.dataset.mode === mode;
+    btn.style.background = active ? "var(--accent)" : "transparent";
+    btn.style.color = active ? "#fff" : "var(--accent-ink)";
+    btn.style.borderColor = "var(--line)";
+  });
+
+  const picker = document.getElementById("picker");
+  if (isMerge) {
+    picker.accept = ".xml,text/xml,application/xml";
+    picker.multiple = true;
+    document.getElementById("drop-title").textContent = t("dropTitle");
+    document.getElementById("drop-sub").textContent = t("dropSub");
+    document.getElementById("go").textContent = t("go");
+    document.getElementById("hint").textContent = "Massimo {{ max_files }} file.";
+    if (generatorGuidance) generatorGuidance.style.display = "none";
+  } else {
+    picker.accept = ".csv,.xls,.xlsx,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    picker.multiple = false;
+    document.getElementById("drop-title").textContent = t("dropTitleCsv");
+    document.getElementById("drop-sub").textContent = t("dropSubCsv");
+    document.getElementById("go").textContent = t("goCsv");
+    document.getElementById("hint").textContent = "CSV / Excel • 1 file per upload.";
+    if (generatorGuidance) generatorGuidance.style.display = "block";
+  }
+  if (picker.value) picker.value = "";
+  picked = [];
+  renderFiles();
+  if (document.getElementById("result").classList.contains("on")) {
+    document.getElementById("result").classList.remove("on");
+    last = null;
+  }
+}
 
 function applyLang(){
   document.documentElement.lang = lang;
@@ -383,10 +575,13 @@ function applyLang(){
   document.querySelectorAll(".lang button").forEach(b=>
     b.setAttribute("aria-pressed", String(b.dataset.lang===lang)));
   try{ localStorage.setItem("spotlang", lang);}catch(e){}
+  setMode(currentMode);
   if (last) render(last);
 }
 document.querySelectorAll(".lang button").forEach(b=>
   b.addEventListener("click",()=>{lang=b.dataset.lang;applyLang();}));
+document.querySelectorAll(".mode-btn").forEach(btn=>
+  btn.addEventListener("click",()=>setMode(btn.dataset.mode)));
 
 const contactForm = document.getElementById("contact-form");
 if (contactForm) {
@@ -442,12 +637,20 @@ function renderFiles(){
   $("#clear").hidden = picked.length===0;
 }
 function addFiles(list){
+  const accepted = currentMode === "merge"
+    ? (f => /\.xml$/i.test(f.name))
+    : (f => /\.(csv|xls|xlsx)$/i.test(f.name));
   for (const f of list){
-    if (!/\.xml$/i.test(f.name)) continue;
+    if (!accepted(f)) continue;
+    if (currentMode !== "merge" && picked.length >= 1) { picked = []; }
     if (picked.some(p=>p.name===f.name && p.size===f.size)) continue;
     picked.push(f);
+    if (currentMode !== "merge") {
+      refreshGenerateGuidance(f);
+      break;
+    }
   }
-  if (picked.length > {{ max_files }}) picked = picked.slice(0, {{ max_files }});
+  if (currentMode === "merge" && picked.length > {{ max_files }}) picked = picked.slice(0, {{ max_files }});
   renderFiles();
 }
 $("#picker").addEventListener("change", e=>{addFiles(e.target.files); e.target.value="";});
@@ -470,13 +673,23 @@ $("#form").addEventListener("submit", async e=>{
   btn.disabled = true; btn.innerHTML = '<span class="spin"></span>'+t("working");
   const fd = new FormData();
   picked.forEach(f=>fd.append("files", f, f.name));
-  fd.append("region", "{{ default_region }}");
-  const st = loadState(); if (st) fd.append("listing_state", st);
+  const target = currentMode === "merge" ? "/api/merge" : "/api/generate-xml";
+  if (currentMode === "merge") {
+    fd.append("region", "{{ default_region }}");
+    const st = loadState(); if (st) fd.append("listing_state", st);
+  } else if (window.currentFieldMap) {
+    fd.append("field_map", JSON.stringify(window.currentFieldMap));
+  }
   try{
-    const res = await fetch("/api/merge", {method:"POST", body:fd});
+    const res = await fetch(target, {method:"POST", body:fd});
     const data = await res.json();
     if (!res.ok){ showError(data.error || ("HTTP "+res.status)); return; }
-    last = data; saveState(data.listing_state); render(data);
+    if (currentMode === "merge") {
+      last = data; saveState(data.listing_state); render(data);
+    } else {
+      last = {xml: data.xml, filename: "generated_spot.xml", schema: data.schema, csv: "", notes: [], rows: data.rows || [], period: {first: "generated", last: "generated"}, days: data.rows ? data.rows.length : 0, sources: ["CSV/Excel"], columns: [], recoded: 0, listing_state: {}, warnings: []};
+      renderGenerated(data);
+    }
   }catch(err){ showError(String(err)); }
   finally{ btn.disabled=false; btn.innerHTML=label; }
 });
@@ -493,6 +706,27 @@ function showError(msg){
 }
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g,
   c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+function renderGenerated(data){
+  $("#result").classList.add("on");
+  $("#rowsbox").hidden = true;
+  $("#dlxml").hidden = false; $("#dlcsv").hidden = true;
+
+  const status = data.schema && data.schema.status === "ok" ? "ok" : "bad";
+  const v = $("#verdict");
+  if (status === "ok") {
+    v.className = "verdict ok";
+    v.innerHTML = '<span class="ico">✓</span><span><strong>XML generated successfully.</strong>Your file is ready to download and upload to SPOT.</span>';
+  } else {
+    v.className = "verdict bad";
+    v.innerHTML = '<span class="ico">✕</span><span><strong>The generated XML failed validation.</strong><br><code>' + escapeHtml((data.schema && data.schema.detail) || "Unknown validation error") + '</code></span>';
+  }
+
+  $("#stats").innerHTML = '<div class="stat"><div class="k">Rows</div><div class="v">' + escapeHtml(String((data.rows || []).length)) + '</div></div>' +
+    '<div class="stat"><div class="k">Status</div><div class="v">' + escapeHtml(String((data.schema && data.schema.status) || "unknown")) + '</div></div>';
+  $("#notes").innerHTML = '';
+  $("#table").innerHTML = ''; 
+}
 
 function render(d){
   $("#result").classList.add("on");
