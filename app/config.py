@@ -30,11 +30,22 @@ class Config:
     CONTACT_EMAIL = os.environ.get("CONTACT_EMAIL", "")
     PLAUSIBLE_DOMAIN = os.environ.get("PLAUSIBLE_DOMAIN", "")
 
+    # --- email notifications ----------------------------------------------
+    SMTP_ENABLED = _flag("SMTP_ENABLED", False)
+    SMTP_HOST = os.environ.get("SMTP_HOST", "smtp.gmail.com")
+    SMTP_PORT = _int("SMTP_PORT", 587)
+    SMTP_USERNAME = os.environ.get("SMTP_USERNAME", "")
+    SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
+    SMTP_FROM = os.environ.get("SMTP_FROM", CONTACT_EMAIL or SMTP_USERNAME or "")
+    SMTP_TO = os.environ.get("SMTP_TO", CONTACT_EMAIL or SMTP_USERNAME or "")
+    SMTP_USE_TLS = _flag("SMTP_USE_TLS", True)
+    SMTP_USE_SSL = _flag("SMTP_USE_SSL", False)
+
     # --- upload limits ----------------------------------------------------
     # A month of daily blocks for one listing is a few hundred KB even with
     # guests, so these are generous.
     MAX_CONTENT_LENGTH = _int("MAX_UPLOAD_BYTES", 12 * 1024 * 1024)
-    MAX_FILES = _int("MAX_FILES", 20)
+    MAX_FILES = _int("MAX_FILES", 30)
 
     # --- abuse control ----------------------------------------------------
     RATE_LIMIT_PER_HOUR = _int("RATE_LIMIT_PER_HOUR", 60)

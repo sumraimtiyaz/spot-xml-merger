@@ -1,7 +1,9 @@
 """HTTP routes. The merge itself lives in app/engine/merge_istat.py."""
 
+import smtplib
 import time
 from collections import defaultdict, deque
+from email.message import EmailMessage
 
 from flask import (Blueprint, current_app, jsonify, render_template, request)
 
@@ -43,6 +45,54 @@ def rate_limited():
         return True
     hits.append(now)
     return False
+
+
+def send_contact_email(name, email, category, message):
+    if not current_app.config.get("SMTP_ENABLED"):
+        return False
+
+    smtp_host = current_app.config.get("SMTP_HOST") or "smtp.gmail.com"
+    smtp_port = int(current_app.config.get("SMTP_PORT", 587) or 587)
+    username = (current_app.config.get("SMTP_USERNAME") or "").strip()
+    password = (current_app.config.get("SMTP_PASSWORD") or "").strip()
+    sender = (current_app.config.get("SMTP_FROM") or "").strip() or username or "noreply@example.com"
+    recipients = [item.strip() for item in str(current_app.config.get("SMTP_TO") or "").split(",") if item.strip()]
+    if not recipients:
+        recipients = [sender]
+
+    if not username or not password:
+        current_app.logger.warning("SMTP email not sent: missing SMTP_USERNAME or SMTP_PASSWORD")
+        return False
+
+    msg = EmailMessage()
+    msg["Subject"] = f"[UnisciSPOT] {category or 'contact'} request"
+    msg["From"] = sender
+    msg["To"] = ", ".join(recipients)
+    msg.set_content(
+        "\n".join([
+            f"Name: {name or 'anonymous'}",
+            f"Email: {email or 'not provided'}",
+            f"Category: {category or 'other'}",
+            "",
+            message,
+        ])
+    )
+
+    try:
+        if current_app.config.get("SMTP_USE_SSL"):
+            with smtplib.SMTP_SSL(smtp_host, smtp_port) as server:
+                server.login(username, password)
+                server.send_message(msg)
+        else:
+            with smtplib.SMTP(smtp_host, smtp_port) as server:
+                if current_app.config.get("SMTP_USE_TLS", True):
+                    server.starttls()
+                server.login(username, password)
+                server.send_message(msg)
+        return True
+    except Exception:  # noqa: BLE001
+        current_app.logger.exception("contact email notification failed")
+        return False
 
 
 @bp.after_request
@@ -204,6 +254,8 @@ def api_contact():
                                 name or "anonymous",
                                 category,
                                 message[:200])
+
+    send_contact_email(name, email, category, message)
 
     return jsonify(
         ok=True,

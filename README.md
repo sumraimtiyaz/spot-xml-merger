@@ -59,7 +59,9 @@ Behind a reverse proxy, keep `TRUST_PROXY_HEADER=1` so rate limiting sees real
 client addresses, and terminate TLS at the proxy.
 
 Copy `.env.example` to `.env` and set at least `SECRET_KEY` and
-`CONTACT_EMAIL`.
+`CONTACT_EMAIL`. If you want contact-form email notifications via Gmail, set
+`SMTP_ENABLED=1`, `SMTP_USERNAME`, `SMTP_PASSWORD`, and optionally
+`SMTP_FROM`/`SMTP_TO`.
 
 ---
 

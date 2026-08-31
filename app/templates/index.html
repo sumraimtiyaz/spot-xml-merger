@@ -80,6 +80,7 @@ input[type=file]{display:none}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 .btn.ghost{background:transparent;color:var(--accent-ink);border:1px solid var(--line);font-weight:500}
 .btn.small{padding:9px 15px;font-size:14px}
+.cta-link{text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
 
 .result{margin-top:22px;display:none}
 .result.on{display:block}
@@ -179,6 +180,7 @@ footer{border-top:1px solid var(--line);padding:26px 0 44px;color:var(--muted);f
         <button class="btn" id="go" type="submit" disabled data-i18n="go">Unisci i file</button>
         <button class="btn ghost small" id="clear" type="button" hidden data-i18n="clear">Svuota</button>
         <span class="small" id="hint" data-i18n="hint">Massimo {{ max_files }} file.</span>
+        <a class="btn ghost small cta-link" id="need-more-files" href="#contact" data-i18n="limitCta">Vuoi caricare più file? Contattaci</a>
       </div>
     </form>
 
@@ -276,7 +278,7 @@ const I18N = {
   b3:"<strong>Gratis</strong> — nessuna registrazione",
   dropTitle:"Trascinare qui i file XML del mese",
   dropSub:"oppure clicca per sceglierli — uno per ogni camera/annuncio",
-  go:"Unisci i file", clear:"Svuota", hint:"Massimo {{ max_files }} file.",
+  go:"Unisci i file", clear:"Svuota", hint:"Massimo {{ max_files }} file.", limitCta:"Need a larger batch? Ask us here",
   dlxml:"Scarica XML per SPOT", dlcsv:"Scarica riepilogo CSV",
   showRows:"Mostra il dettaglio giorno per giorno",
   howTitle:"Come funziona", whyTitle:"Perché non basta incollare i file",
@@ -323,7 +325,7 @@ const I18N = {
   b3:"<strong>Free</strong> — no sign-up",
   dropTitle:"Drop month's XML files here",
   dropSub:"or click to choose them — one per room listing",
-  go:"Merge the files", clear:"Clear", hint:"Up to {{ max_files }} files.",
+  go:"Merge the files", clear:"Clear", hint:"Up to {{ max_files }} files.", limitCta:"Need a larger batch? Ask us here",
   dlxml:"Download XML for SPOT", dlcsv:"Download CSV summary",
   showRows:"Show the day-by-day detail",
   howTitle:"How it works", whyTitle:"Why joining the files doesn't work",
