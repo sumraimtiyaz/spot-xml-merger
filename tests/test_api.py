@@ -115,6 +115,158 @@ def test_contact_form_email_notification_is_called():
     return []
 
 
+def test_validate_xml_ok():
+    c = Client()
+    xml = month(2, code="1")
+    r = c.c.post("/api/validate-xml", data={"files": [(io.BytesIO(xml.encode()), "valid.xml")]},
+                 content_type="multipart/form-data")
+    if r.status_code != 200:
+        return ["expected 200, got %s: %s" % (r.status_code, r.get_data(as_text=True)[:200])]
+    payload = r.get_json()
+    if payload.get("ok") is not True:
+        return ["validation unexpectedly failed: %s" % payload]
+    return []
+
+
+def test_validate_xml_rejects_invalid_xml():
+    c = Client()
+    r = c.c.post("/api/validate-xml", data={"files": [(io.BytesIO(b"<movimenti>broken"), "bad.xml")]},
+                 content_type="multipart/form-data")
+    if r.status_code != 422:
+        return ["expected 422, got %s: %s" % (r.status_code, r.get_data(as_text=True)[:200])]
+    payload = r.get_json()
+    if not payload.get("files"):
+        return ["missing file validation results"]
+    if payload["files"][0].get("status") not in {"invalid", "failed"}:
+        return ["invalid file was not flagged as invalid"]
+    return []
+
+
+def test_contact_form_reports_delivery_failure():
+    c = Client()
+    with patch("app.views.send_contact_email", return_value=False):
+        r = c.c.post("/api/contact", json={
+            "name": "Mario",
+            "email": "mario@example.com",
+            "category": "issue",
+            "message": "Please review this issue.",
+        })
+    if r.status_code != 502:
+        return ["expected 502 when delivery fails, got %s" % r.status_code]
+    if "delivery service" not in (r.get_json() or {}).get("error", ""):
+        return ["missing delivery failure message"]
+    return []
+
+
+def test_generate_xml_from_csv():
+    c = Client()
+    csv_data = (
+        "date,codiceclientesr,sesso,cittadinanza,comuneresidenza,occupazionepostoletto,dayuse,tipologiaalloggiato,eta,cameredisponibili,postilettodisponibili,camereoccupate\n"
+        "2026-06-01,ABC1,M,100000100,412058091,si,no,16,40,2,4,1\n"
+        "2026-06-02,ABC2,F,100000100,412058091,si,no,16,38,2,4,1\n"
+    )
+    r = c.c.post("/api/generate-xml", data={"files": [(io.BytesIO(csv_data.encode()), "guests.csv")]},
+                 content_type="multipart/form-data")
+    if r.status_code != 200:
+        return ["expected 200, got %s: %s" % (r.status_code, r.get_data(as_text=True)[:200])]
+    payload = r.get_json()
+    if payload.get("ok") is not True:
+        return ["generation unexpectedly failed: %s" % payload]
+    if "<movimenti" not in payload["xml"]:
+        return ["generated XML missing root element"]
+    if payload["schema"]["status"] != "ok":
+        return ["generated XML failed schema validation: %s" % payload["schema"].get("detail")]
+    return []
+
+
+def test_generate_xml_rejects_missing_required_fields():
+    c = Client()
+    csv_data = "date,codiceclientesr,sesso,cittadinanza\n2026-06-01,ABC1,M,100000100\n"
+    r = c.c.post("/api/generate-xml", data={"files": [(io.BytesIO(csv_data.encode()), "bad.csv")]},
+                 content_type="multipart/form-data")
+    if r.status_code != 400:
+        return ["expected 400, got %s: %s" % (r.status_code, r.get_data(as_text=True)[:200])]
+    if "Missing required field" not in (r.get_json() or {}).get("error", ""):
+        return ["missing required-field validation message"]
+    return []
+
+
+def test_generate_xml_from_excel():
+    import openpyxl
+
+    c = Client()
+    workbook = openpyxl.Workbook()
+    sheet = workbook.active
+    headers = [
+        "date", "codiceclientesr", "sesso", "cittadinanza", "comuneresidenza",
+        "occupazionepostoletto", "dayuse", "tipologiaalloggiato", "eta",
+        "cameredisponibili", "postilettodisponibili", "camereoccupate",
+    ]
+    sheet.append(headers)
+    sheet.append(["2026-06-01", "ABC1", "M", "100000100", "412058091", "si", "no", "16", "40", 2, 4, 1])
+    sheet.append(["2026-06-02", "ABC2", "F", "100000100", "412058091", "si", "no", "16", "38", 2, 4, 1])
+
+    payload = io.BytesIO()
+    workbook.save(payload)
+    payload.seek(0)
+
+    r = c.c.post("/api/generate-xml", data={"files": [(payload, "guests.xlsx")]},
+                 content_type="multipart/form-data")
+    if r.status_code != 200:
+        return ["expected 200 for Excel upload, got %s: %s" % (r.status_code, r.get_data(as_text=True)[:200])]
+    json_payload = r.get_json()
+    if json_payload.get("ok") is not True:
+        return ["Excel generation unexpectedly failed: %s" % json_payload]
+    if json_payload["schema"]["status"] != "ok":
+        return ["Excel-generated XML failed schema validation: %s" % json_payload["schema"].get("detail")]
+    return []
+
+
+def test_generate_xml_accepts_custom_mapping():
+    c = Client()
+    csv_data = (
+        "guest_date,guest_code,sex,nationality,residence,occupied_bed,day_use,guest_type,age\n"
+        "2026-06-01,ABC1,M,100000100,412058091,si,no,16,40\n"
+        "2026-06-02,ABC2,F,100000100,412058091,si,no,16,38\n"
+    )
+    field_map = {
+        "date": "guest_date",
+        "codiceclientesr": "guest_code",
+        "sesso": "sex",
+        "cittadinanza": "nationality",
+        "comuneresidenza": "residence",
+        "occupazionepostoletto": "occupied_bed",
+        "dayuse": "day_use",
+        "tipologiaalloggiato": "guest_type",
+        "eta": "age",
+    }
+    r = c.c.post("/api/generate-xml", data={
+        "files": [(io.BytesIO(csv_data.encode()), "mapped.csv")],
+        "field_map": json.dumps(field_map),
+    }, content_type="multipart/form-data")
+    if r.status_code != 200:
+        return ["expected 200 with custom mapping, got %s: %s" % (r.status_code, r.get_data(as_text=True)[:200])]
+    payload = r.get_json()
+    if payload.get("ok") is not True:
+        return ["custom mapping unexpectedly failed: %s" % payload]
+    if payload["schema"]["status"] != "ok":
+        return ["custom mapping generated invalid XML: %s" % payload["schema"].get("detail")]
+    return []
+
+
+def test_sample_csv_template_download():
+    c = Client()
+    r = c.c.get("/api/sample-csv")
+    if r.status_code != 200:
+        return ["expected 200, got %s: %s" % (r.status_code, r.get_data(as_text=True)[:200])]
+    text = r.get_data(as_text=True)
+    if "date,codiceclientesr" not in text:
+        return ["template is missing the expected CSV header"]
+    if "attachment; filename=spot-template.csv" not in r.headers.get("Content-Disposition", ""):
+        return ["sample CSV download header is missing"]
+    return []
+
+
 def test_metrics_fallback_when_disk_writes_fail():
     original_path = metrics_module._metrics_path
     original_write = metrics_module._write_metrics_file
@@ -301,6 +453,14 @@ if __name__ == "__main__":
         ("Landing page renders with no-store headers", test_landing),
         ("Health endpoint", test_health),
         ("Contact form email notification is called", test_contact_form_email_notification_is_called),
+        ("Validation accepts well-formed XML", test_validate_xml_ok),
+        ("Validation rejects malformed XML", test_validate_xml_rejects_invalid_xml),
+        ("CSV XML generation succeeds", test_generate_xml_from_csv),
+        ("CSV XML generation rejects missing required fields", test_generate_xml_rejects_missing_required_fields),
+        ("Excel XML generation succeeds", test_generate_xml_from_excel),
+        ("Custom mapping accepts spreadsheet headers", test_generate_xml_accepts_custom_mapping),
+        ("Sample CSV template download works", test_sample_csv_template_download),
+        ("Contact form reports delivery failure", test_contact_form_reports_delivery_failure),
         ("Metrics fallback handles write failures", test_metrics_fallback_when_disk_writes_fail),
         ("Three listings merge, sum and validate", test_merge_happy),
         ("Colliding guest codes are re-coded", test_guest_code_collision),
