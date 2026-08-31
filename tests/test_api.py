@@ -5,6 +5,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -96,6 +97,22 @@ def test_health():
     c = Client()
     r = c.c.get("/healthz")
     return [] if r.status_code == 200 and r.get_json()["status"] == "ok" else ["unhealthy"]
+
+
+def test_contact_form_email_notification_is_called():
+    c = Client()
+    with patch("app.views.send_contact_email", return_value=True) as mocked:
+        r = c.c.post("/api/contact", json={
+            "name": "Mario",
+            "email": "mario@example.com",
+            "category": "issue",
+            "message": "Please review this issue.",
+        })
+    if r.status_code != 200:
+        return ["contact endpoint returned %s" % r.status_code]
+    if not mocked.called:
+        return ["email helper was not invoked"]
+    return []
 
 
 def test_metrics_fallback_when_disk_writes_fail():
@@ -225,7 +242,7 @@ def test_date_gap_surfaces():
 
 def test_too_many_files():
     c = Client()
-    files = [("f%d.xml" % i, month(1)) for i in range(30)]
+    files = [("f%d.xml" % i, month(1)) for i in range(31)]
     r = c.merge(files)
     return [] if r.status_code == 400 else ["expected 400, got %s" % r.status_code]
 
@@ -283,6 +300,7 @@ if __name__ == "__main__":
     tests = [
         ("Landing page renders with no-store headers", test_landing),
         ("Health endpoint", test_health),
+        ("Contact form email notification is called", test_contact_form_email_notification_is_called),
         ("Metrics fallback handles write failures", test_metrics_fallback_when_disk_writes_fail),
         ("Three listings merge, sum and validate", test_merge_happy),
         ("Colliding guest codes are re-coded", test_guest_code_collision),
