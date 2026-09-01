@@ -40,8 +40,6 @@ class Config:
     SMTP_TO = os.environ.get("SMTP_TO", CONTACT_EMAIL or SMTP_USERNAME or "")
     SMTP_USE_TLS = _flag("SMTP_USE_TLS", True)
     SMTP_USE_SSL = _flag("SMTP_USE_SSL", False)
-    RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
-    RESEND_FROM = os.environ.get("RESEND_FROM", SMTP_FROM or CONTACT_EMAIL or "")
 
     # --- upload limits ----------------------------------------------------
     # A month of daily blocks for one listing is a few hundred KB even with

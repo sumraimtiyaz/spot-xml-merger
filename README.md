@@ -59,11 +59,9 @@ Behind a reverse proxy, keep `TRUST_PROXY_HEADER=1` so rate limiting sees real
 client addresses, and terminate TLS at the proxy.
 
 Copy `.env.example` to `.env` and set at least `SECRET_KEY` and
-`CONTACT_EMAIL`. For Vercel deployments, the recommended option is to use
-`RESEND_API_KEY` plus `RESEND_FROM`; direct SMTP is less reliable because
-serverless runtimes often block outbound SMTP connections. If you still want
-Gmail SMTP, set `SMTP_ENABLED=1`, `SMTP_USERNAME`, `SMTP_PASSWORD`, and
-optionally `SMTP_FROM`/`SMTP_TO`.
+`CONTACT_EMAIL`. For Vercel deployments, use Gmail SMTP with a Gmail App
+Password (`SMTP_ENABLED=1`, `SMTP_USERNAME`, `SMTP_PASSWORD`, and optionally
+`SMTP_FROM`/`SMTP_TO`).
 
 ---
 
