@@ -58,10 +58,10 @@ idle. Any container host works: Fly.io, Railway, Render, Hetzner + Caddy, a
 Behind a reverse proxy, keep `TRUST_PROXY_HEADER=1` so rate limiting sees real
 client addresses, and terminate TLS at the proxy.
 
-Copy `.env.example` to `.env` and set at least `SECRET_KEY` and
-`CONTACT_EMAIL`. For Vercel deployments, use Gmail SMTP with a Gmail App
-Password (`SMTP_ENABLED=1`, `SMTP_USERNAME`, `SMTP_PASSWORD`, and optionally
-`SMTP_FROM`/`SMTP_TO`).
+Copy `.env.example` to `.env` and set at least `SECRET_KEY` and a strong
+`API_AUTH_TOKEN`. Restrict `CORS_ALLOWED_ORIGINS` to the real frontend
+host(s), and enable Gmail SMTP for the public contact form (`SMTP_ENABLED=1`,
+`SMTP_USERNAME`, `SMTP_PASSWORD`, and optionally `SMTP_FROM`/`SMTP_TO`).
 
 ---
 

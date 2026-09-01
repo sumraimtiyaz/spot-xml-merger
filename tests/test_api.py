@@ -50,8 +50,14 @@ def month(beds, code=None, days=5):
 
 
 class Client:
-    def __init__(self):
-        cfg = type("T", (DevConfig,), {"TESTING": True, "RATE_LIMIT_PER_HOUR": 0})
+    def __init__(self, api_auth_required=False, api_token="test-token"):
+        cfg = type("T", (DevConfig,), {
+            "TESTING": True,
+            "RATE_LIMIT_PER_HOUR": 0,
+            "API_AUTH_REQUIRED": api_auth_required,
+            "API_AUTH_TOKEN": api_token,
+            "CORS_ALLOWED_ORIGINS": ["https://app.example.com"],
+        })
         self.app = create_app(cfg)
         self.c = self.app.test_client()
 
@@ -97,6 +103,34 @@ def test_health():
     c = Client()
     r = c.c.get("/healthz")
     return [] if r.status_code == 200 and r.get_json()["status"] == "ok" else ["unhealthy"]
+
+
+def test_protected_api_requires_auth_token():
+    c = Client(api_auth_required=True)
+    xml = month(2, code="1")
+    r = c.c.post("/api/validate-xml", data={"files": [(io.BytesIO(xml.encode()), "valid.xml")]},
+                 content_type="multipart/form-data")
+    if r.status_code != 401:
+        return ["expected 401 without auth token, got %s: %s" % (r.status_code, r.get_data(as_text=True)[:200])]
+    return []
+
+
+def test_protected_api_accepts_bearer_token():
+    c = Client(api_auth_required=True)
+    xml = month(2, code="1")
+    r = c.c.post("/api/validate-xml", data={"files": [(io.BytesIO(xml.encode()), "valid.xml")]},
+                 content_type="multipart/form-data", headers={"Authorization": "Bearer test-token"})
+    if r.status_code != 200:
+        return ["expected 200 with valid auth token, got %s: %s" % (r.status_code, r.get_data(as_text=True)[:200])]
+    return []
+
+
+def test_cors_restricts_unlisted_origin():
+    c = Client(api_auth_required=True)
+    r = c.c.options("/api/merge", headers={"Origin": "https://evil.example"})
+    if r.headers.get("Access-Control-Allow-Origin") is not None:
+        return ["CORS unexpectedly allowed an unlisted origin"]
+    return []
 
 
 def test_contact_form_email_notification_is_called():
@@ -453,6 +487,9 @@ if __name__ == "__main__":
         ("Landing page renders with no-store headers", test_landing),
         ("Health endpoint", test_health),
         ("Contact form email notification is called", test_contact_form_email_notification_is_called),
+        ("Protected API requires auth token", test_protected_api_requires_auth_token),
+        ("Protected API accepts bearer token", test_protected_api_accepts_bearer_token),
+        ("CORS blocks unlisted origins", test_cors_restricts_unlisted_origin),
         ("Validation accepts well-formed XML", test_validate_xml_ok),
         ("Validation rejects malformed XML", test_validate_xml_rejects_invalid_xml),
         ("CSV XML generation succeeds", test_generate_xml_from_csv),

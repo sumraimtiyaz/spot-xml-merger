@@ -27,8 +27,14 @@ class Config:
     # --- service ----------------------------------------------------------
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-only-not-a-secret")
     SITE_NAME = os.environ.get("SITE_NAME", "UnisciSPOT")
-    CONTACT_EMAIL = os.environ.get("CONTACT_EMAIL", "")
     PLAUSIBLE_DOMAIN = os.environ.get("PLAUSIBLE_DOMAIN", "")
+
+    # --- API security ------------------------------------------------------
+    API_AUTH_REQUIRED = _flag("API_AUTH_REQUIRED", True)
+    API_AUTH_TOKEN = os.environ.get("API_AUTH_TOKEN", "")
+    CORS_ALLOWED_ORIGINS = [
+        item.strip() for item in os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",") if item.strip()
+    ]
 
     # --- email notifications ----------------------------------------------
     SMTP_ENABLED = _flag("SMTP_ENABLED", False)
@@ -36,8 +42,8 @@ class Config:
     SMTP_PORT = _int("SMTP_PORT", 587)
     SMTP_USERNAME = os.environ.get("SMTP_USERNAME", "")
     SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
-    SMTP_FROM = os.environ.get("SMTP_FROM", CONTACT_EMAIL or SMTP_USERNAME or "")
-    SMTP_TO = os.environ.get("SMTP_TO", CONTACT_EMAIL or SMTP_USERNAME or "")
+    SMTP_FROM = os.environ.get("SMTP_FROM", SMTP_USERNAME or "")
+    SMTP_TO = os.environ.get("SMTP_TO", SMTP_USERNAME or "")
     SMTP_USE_TLS = _flag("SMTP_USE_TLS", True)
     SMTP_USE_SSL = _flag("SMTP_USE_SSL", False)
 
