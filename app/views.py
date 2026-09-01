@@ -7,7 +7,6 @@ import smtplib
 import time
 from collections import defaultdict, deque
 from email.message import EmailMessage
-from urllib import request as urllib_request
 
 from flask import (Blueprint, Response, current_app, jsonify, render_template, request)
 
@@ -78,46 +77,6 @@ def _excel_rows_to_csv_bytes(workbook):
 
 
 def send_contact_email(name, email, category, message):
-    api_key = (current_app.config.get("RESEND_API_KEY") or "").strip()
-    if api_key:
-        sender = (current_app.config.get("RESEND_FROM") or current_app.config.get("SMTP_FROM") or "").strip() or "noreply@example.com"
-        recipients = [item.strip() for item in str(current_app.config.get("SMTP_TO") or "").split(",") if item.strip()]
-        if not recipients:
-            recipients = [sender]
-        payload = {
-            "from": sender,
-            "to": recipients,
-            "subject": f"[UnisciSPOT] {category or 'contact'} request",
-            "text": "\n".join([
-                f"Name: {name or 'anonymous'}",
-                f"Email: {email or 'not provided'}",
-                f"Category: {category or 'other'}",
-                "",
-                message,
-            ]),
-        }
-        body = json.dumps(payload).encode("utf-8")
-        req = urllib_request.Request(
-            "https://api.resend.com/emails",
-            data=body,
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-                "Accept": "application/json",
-            },
-            method="POST",
-        )
-        try:
-            with urllib_request.urlopen(req, timeout=15) as resp:
-                status = getattr(resp, "status", resp.getcode())
-                if status in {200, 201, 202}:
-                    return True
-                current_app.logger.warning("Resend email failed with status %s", status)
-                return False
-        except Exception:  # noqa: BLE001
-            current_app.logger.exception("Resend contact email notification failed")
-            return False
-
     if not current_app.config.get("SMTP_ENABLED"):
         return False
 
@@ -372,8 +331,7 @@ def api_merge():
 
     region = get_region(request.form.get("region"))
 
-    import json
-
+    
     state = None
     raw_state = (request.form.get("listing_state") or "").strip()
     if raw_state:
