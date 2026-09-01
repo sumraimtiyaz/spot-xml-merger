@@ -17,6 +17,7 @@ from .metrics import (
     record_action,
     record_contact_submission,
     record_visitor,
+    record_xml_file_count,
 )
 from .engine.merge_istat import MergeError, validate_text_against_schema
 from .generator import generate_xml_from_csv
@@ -145,8 +146,8 @@ def index():
         default_region=DEFAULT_REGION,
         max_files=current_app.config["MAX_FILES"],
         max_bytes=current_app.config["MAX_CONTENT_LENGTH"],
-        contact_email=current_app.config.get("CONTACT_EMAIL", ""),
         plausible_domain=current_app.config.get("PLAUSIBLE_DOMAIN", ""),
+        api_token=current_app.config.get("API_AUTH_TOKEN", ""),
     )
 
 
@@ -171,6 +172,23 @@ def api_sample_csv():
 @bp.get("/api/metrics")
 def api_metrics():
     return jsonify(metrics_payload())
+
+
+@bp.post("/api/metrics/xml-progress")
+def api_xml_progress():
+    payload = request.get_json(silent=True) or {}
+    file_count = int(payload.get("file_count") or 0)
+    if file_count <= 0:
+        return jsonify(error="file_count must be a positive integer."), 400
+    if "completed" in payload:
+        completed = bool(payload.get("completed"))
+    else:
+        uploaded = bool(payload.get("uploaded"))
+        generated = bool(payload.get("generated"))
+        downloaded = bool(payload.get("downloaded"))
+        completed = uploaded and generated and downloaded
+    record_xml_file_count(file_count, completed)
+    return jsonify(ok=True, file_count=file_count, completed=completed)
 
 
 @bp.post("/api/validate-xml")

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import tempfile
 from contextlib import contextmanager
@@ -31,6 +32,7 @@ _METRIC_KEYS = (
     "contact_suggestions",
     "contact_improvements",
     "contact_other",
+    "xml_file_count_metrics",
 )
 
 _MEMORY_METRICS: dict[str, int] = {}
@@ -45,8 +47,10 @@ def _metrics_path() -> Path:
     return Path(base_dir) / "spot-xml-merger-site-metrics.xml"
 
 
-def _default_metrics() -> dict[str, int]:
-    return {key: 0 for key in _METRIC_KEYS}
+def _default_metrics() -> dict[str, int | str]:
+    data = {key: 0 for key in _METRIC_KEYS}
+    data["xml_file_count_metrics"] = "{}"
+    return data
 
 
 def _memory_metrics() -> dict[str, int]:
@@ -62,15 +66,19 @@ def _as_int(value, default=0) -> int:
         return default
 
 
-def _tree_from_data(values: dict[str, int]) -> ET.Element:
+def _tree_from_data(values: dict[str, int | str]) -> ET.Element:
     root = ET.Element("site_metrics")
     for key in _METRIC_KEYS:
         node = ET.SubElement(root, key)
-        node.text = str(int(values.get(key, 0)))
+        value = values.get(key, 0)
+        if key == "xml_file_count_metrics":
+            node.text = str(value if isinstance(value, str) else json.dumps(value, sort_keys=True))
+        else:
+            node.text = str(int(value or 0))
     return root
 
 
-def _read_metrics_file(path: Path) -> dict[str, int]:
+def _read_metrics_file(path: Path) -> dict[str, int | str]:
     if not path.exists():
         return _default_metrics()
     try:
@@ -80,7 +88,16 @@ def _read_metrics_file(path: Path) -> dict[str, int]:
     data = _default_metrics()
     for key in _METRIC_KEYS:
         node = root.find(key)
-        if node is not None:
+        if node is None:
+            continue
+        if key == "xml_file_count_metrics":
+            raw = (node.text or "").strip()
+            try:
+                parsed = json.loads(raw) if raw else {}
+            except json.JSONDecodeError:
+                parsed = {}
+            data[key] = json.dumps(parsed, sort_keys=True)
+        else:
             data[key] = _as_int(node.text)
     return data
 
@@ -192,7 +209,46 @@ def record_contact_submission(category: str) -> dict[str, int]:
     return update_metrics(contact_requests=1, **{metric_key: 1})
 
 
-def metrics_payload() -> dict[str, float | int]:
+def record_xml_file_count(file_count: int, completed: bool) -> dict[str, object]:
+    count = int(file_count or 0)
+    if count <= 0:
+        return {"xml_file_count_metrics": {}}
+
+    payload = {}
+    existing = read_metrics().get("xml_file_count_metrics") or "{}"
+    try:
+        payload = json.loads(existing) if isinstance(existing, str) else dict(existing)
+    except json.JSONDecodeError:
+        payload = {}
+
+    key = str(count)
+    bucket = payload.setdefault(key, {"completed": 0, "not_completed": 0})
+    if not isinstance(bucket, dict):
+        bucket = {"completed": 0, "not_completed": 0}
+        payload[key] = bucket
+
+    if completed:
+        bucket["completed"] = int(bucket.get("completed", 0)) + 1
+    else:
+        bucket["not_completed"] = int(bucket.get("not_completed", 0)) + 1
+
+    serialized = json.dumps(payload, sort_keys=True)
+    values = _memory_metrics()
+    values["xml_file_count_metrics"] = serialized
+    _MEMORY_METRICS.clear()
+    _MEMORY_METRICS.update(values)
+    try:
+        path = ensure_metrics_file()
+        with _locked_metrics(path):
+            current = _read_metrics_file(path)
+            current["xml_file_count_metrics"] = serialized
+            _write_metrics_file(path, current)
+    except (OSError, PermissionError, RuntimeError, ValueError):
+        pass
+    return {"xml_file_count_metrics": payload}
+
+
+def metrics_payload() -> dict[str, float | int | dict]:
     data = read_metrics()
     visitors = int(data.get("total_visitors", 0))
     actions = int(data.get("total_actions", 0))
@@ -201,6 +257,12 @@ def metrics_payload() -> dict[str, float | int]:
     satisfied = int(data.get("satisfied_responses", 0))
     not_satisfied = int(data.get("not_satisfied_responses", 0))
     feedback_responses = satisfied + not_satisfied
+
+    raw_xml_metrics = data.get("xml_file_count_metrics", "{}") or "{}"
+    try:
+        xml_file_count_metrics = json.loads(raw_xml_metrics) if isinstance(raw_xml_metrics, str) else dict(raw_xml_metrics)
+    except json.JSONDecodeError:
+        xml_file_count_metrics = {}
 
     payload = {
         "total_visitors": visitors,
@@ -215,6 +277,7 @@ def metrics_payload() -> dict[str, float | int]:
         "contact_suggestions": int(data.get("contact_suggestions", 0)),
         "contact_improvements": int(data.get("contact_improvements", 0)),
         "contact_other": int(data.get("contact_other", 0)),
+        "xml_file_count_metrics": xml_file_count_metrics,
         "action_rate": round((actions / visitors), 4) if visitors else 0.0,
         "conversion_rate": round((successful / actions), 4) if actions else 0.0,
         "satisfaction_rate": round((satisfied / feedback_responses), 4) if feedback_responses else 0.0,

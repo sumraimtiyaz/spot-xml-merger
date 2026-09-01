@@ -142,6 +142,9 @@ footer{border-top:1px solid var(--line);padding:26px 0 44px;color:var(--muted);f
 </style>
 </head>
 <body>
+<script>
+  window.APP_API_TOKEN = {{ api_token|tojson }};
+</script>
 
 <header>
   <div class="wrap bar">
@@ -242,7 +245,7 @@ footer{border-top:1px solid var(--line);padding:26px 0 44px;color:var(--muted);f
     <p class="small" data-i18n="priv2">I dati statistici SPOT non contengono nomi: sono conteggi e codici. Gli adempimenti verso Alloggiati Web della Polizia di Stato sono separati e questo strumento non li riguarda.</p>
 
     <h2 style="margin-top:26px" data-i18n="regTitle">Regioni</h2>
-    <p data-i18n="reg1">Ogni regione italiana ha un tracciato diverso. Al momento è supportata solo la <strong>Puglia (DMS/SPOT)</strong>, l'unica per cui abbiamo lo schema ufficiale e file reali di prova.{% if contact_email %} Se ti serve un'altra regione, <a href="mailto:{{ contact_email }}">scrivici</a>.{% endif %}</p>
+    <p data-i18n="reg1">Ogni regione italiana ha un tracciato diverso. Al momento è supportata solo la <strong>Puglia (DMS/SPOT)</strong>, l'unica per cui abbiamo lo schema ufficiale e file reali di prova.</p>
     <p class="small">{% for k,n,p in planned %}{{ n }} ({{ p }}){% if not loop.last %} · {% endif %}{% endfor %} — <span data-i18n="reg2">non ancora supportate.</span></p>
 
     <div class="card" id="contact" style="margin-top:26px">
@@ -275,7 +278,6 @@ footer{border-top:1px solid var(--line);padding:26px 0 44px;color:var(--muted);f
         </label>
         <div class="contact-actions">
           <button class="btn" type="submit" data-i18n="contactSend">Invia richiesta</button>
-          {% if contact_email %}<a class="btn ghost" href="mailto:{{ contact_email }}" data-i18n="contactMail">Scrivici via email</a>{% endif %}
         </div>
         <p class="small" id="contact-status" aria-live="polite"></p>
       </form>
@@ -286,7 +288,6 @@ footer{border-top:1px solid var(--line);padding:26px 0 44px;color:var(--muted);f
 <footer>
   <div class="wrap">
     <p data-i18n="foot1">Strumento indipendente, non affiliato alla Regione Puglia, a Pugliapromozione o a InnovaPuglia. Verifica sempre l'esito del caricamento sul portale.</p>
-    {% if contact_email %}<p class="small"><a href="mailto:{{ contact_email }}">{{ contact_email }}</a></p>{% endif %}
   </div>
 </footer>
 
@@ -622,6 +623,41 @@ if (contactForm) {
 function fmtSize(n){ return n<1024 ? n+" B" : n<1048576 ? (n/1024).toFixed(0)+" KB"
   : (n/1048576).toFixed(1)+" MB"; }
 
+function loadXmlProgressState(){
+  try { return JSON.parse(localStorage.getItem("spotXmlProgress") || "{}") || {}; }
+  catch (e) { return {}; }
+}
+function saveXmlProgressState(state){
+  try { localStorage.setItem("spotXmlProgress", JSON.stringify(state)); } catch (e) {}
+}
+function clearXmlProgressState(){
+  try { localStorage.removeItem("spotXmlProgress"); } catch (e) {}
+}
+function recordXmlProgressState(state){
+  const count = Number(state.file_count || 0);
+  if (!count) return;
+  const payload = {
+    file_count: count,
+    uploaded: !!state.uploaded,
+    generated: !!state.generated,
+    downloaded: !!state.downloaded,
+  };
+  saveXmlProgressState(payload);
+  const headers = {"Content-Type": "application/json"};
+  if (window.APP_API_TOKEN) headers.Authorization = "Bearer " + window.APP_API_TOKEN;
+  fetch("/api/metrics/xml-progress", {method:"POST", headers, body: JSON.stringify(payload)})
+    .catch(()=>{});
+}
+function flushIncompleteXmlProgressState(){
+  const state = loadXmlProgressState();
+  const count = Number(state.file_count || 0);
+  if (!count) return;
+  const completed = !!state.uploaded && !!state.generated && !!state.downloaded;
+  if (!completed) {
+    recordXmlProgressState({file_count: count, uploaded: !!state.uploaded, generated: !!state.generated, downloaded: !!state.downloaded});
+  }
+}
+
 function renderFiles(){
   const ul = $("#filelist"); ul.innerHTML = "";
   picked.forEach((f,i)=>{
@@ -630,7 +666,7 @@ function renderFiles(){
     const sz=document.createElement("span"); sz.className="sz"; sz.textContent=fmtSize(f.size);
     const x=document.createElement("button"); x.type="button"; x.textContent="×";
     x.setAttribute("aria-label","remove");
-    x.addEventListener("click",()=>{picked.splice(i,1);renderFiles();});
+    x.addEventListener("click",()=>{picked.splice(i,1);renderFiles(); if (picked.length === 0) clearXmlProgressState();});
     li.append(nm,sz,x); ul.append(li);
   });
   $("#go").disabled = picked.length===0;
@@ -651,10 +687,13 @@ function addFiles(list){
     }
   }
   if (currentMode === "merge" && picked.length > {{ max_files }}) picked = picked.slice(0, {{ max_files }});
+  if (picked.length) {
+    recordXmlProgressState({file_count: picked.length, uploaded: true, generated: false, downloaded: false});
+  }
   renderFiles();
 }
 $("#picker").addEventListener("change", e=>{addFiles(e.target.files); e.target.value="";});
-$("#clear").addEventListener("click", ()=>{picked=[];renderFiles();$("#result").classList.remove("on");});
+$("#clear").addEventListener("click", ()=>{picked=[];renderFiles();clearXmlProgressState();$("#result").classList.remove("on");});
 const drop = $("#drop");
 ["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{
   e.preventDefault();drop.classList.add("hot");}));
@@ -681,14 +720,20 @@ $("#form").addEventListener("submit", async e=>{
     fd.append("field_map", JSON.stringify(window.currentFieldMap));
   }
   try{
-    const res = await fetch(target, {method:"POST", body:fd});
+    const authHeaders = {};
+    if (window.APP_API_TOKEN) {
+      authHeaders.Authorization = "Bearer " + window.APP_API_TOKEN;
+    }
+    const res = await fetch(target, {method:"POST", body:fd, headers: authHeaders});
     const data = await res.json();
     if (!res.ok){ showError(data.error || ("HTTP "+res.status)); return; }
     if (currentMode === "merge") {
       last = data; saveState(data.listing_state); render(data);
+      recordXmlProgressState({file_count: picked.length || 1, uploaded: true, generated: true, downloaded: false});
     } else {
       last = {xml: data.xml, filename: "generated_spot.xml", schema: data.schema, csv: "", notes: [], rows: data.rows || [], period: {first: "generated", last: "generated"}, days: data.rows ? data.rows.length : 0, sources: ["CSV/Excel"], columns: [], recoded: 0, listing_state: {}, warnings: []};
       renderGenerated(data);
+      recordXmlProgressState({file_count: 1, uploaded: true, generated: true, downloaded: false});
     }
   }catch(err){ showError(String(err)); }
   finally{ btn.disabled=false; btn.innerHTML=label; }
@@ -777,9 +822,16 @@ function download(text, name, mime){
   a.href = url; a.download = name; document.body.appendChild(a); a.click();
   document.body.removeChild(a); setTimeout(()=>URL.revokeObjectURL(url), 2000);
 }
-$("#dlxml").addEventListener("click", ()=>{ if(last) download(last.xml, last.filename, "application/xml"); });
+$("#dlxml").addEventListener("click", ()=>{
+  if (!last) return;
+  download(last.xml, last.filename, "application/xml");
+  const count = currentMode === "merge" ? (picked.length || 1) : 1;
+  recordXmlProgressState({file_count: count, uploaded: true, generated: true, downloaded: true});
+});
 $("#dlcsv").addEventListener("click", ()=>{ if(last)
   download(last.csv, last.filename.replace(/\.xml$/i,".csv"), "text/csv"); });
+
+window.addEventListener("beforeunload", flushIncompleteXmlProgressState);
 
 applyLang(); renderFiles();
 </script>
