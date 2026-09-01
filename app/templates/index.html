@@ -446,6 +446,16 @@ function getPreferredMappingFor(field, headers){
   return "";
 }
 
+function resetGeneratorMappingState(){
+  window.currentFieldMap = {};
+  const grid = document.getElementById("mapping-grid");
+  const panel = document.getElementById("custom-mapping-panel");
+  const required = document.getElementById("required-columns");
+  if (grid) grid.innerHTML = "";
+  if (required) required.innerHTML = "";
+  if (panel) panel.style.display = "none";
+}
+
 function renderRequiredColumns(headers){
   const root = document.getElementById("required-columns");
   if (!root) return;
@@ -503,6 +513,7 @@ function refreshGenerateGuidance(file){
   if (!panel || !required || !mappingPanel) return;
 
   if (!file) {
+    resetGeneratorMappingState();
     panel.style.display = "none";
     return;
   }
@@ -512,7 +523,7 @@ function refreshGenerateGuidance(file){
   if (!isCsv) {
     required.innerHTML = '<div style="color:var(--muted)">Excel files are supported. Keep the standard column names below for the smoothest result.</div>';
     mappingPanel.style.display = "none";
-    window.currentFieldMap = {};
+    resetGeneratorMappingState();
     return;
   }
 
@@ -560,6 +571,7 @@ function setMode(mode){
   }
   if (picker.value) picker.value = "";
   picked = [];
+  resetGeneratorMappingState();
   renderFiles();
   if (document.getElementById("result").classList.contains("on")) {
     document.getElementById("result").classList.remove("on");
@@ -693,7 +705,13 @@ function addFiles(list){
   renderFiles();
 }
 $("#picker").addEventListener("change", e=>{addFiles(e.target.files); e.target.value="";});
-$("#clear").addEventListener("click", ()=>{picked=[];renderFiles();clearXmlProgressState();$("#result").classList.remove("on");});
+$("#clear").addEventListener("click", ()=>{
+  picked=[];
+  resetGeneratorMappingState();
+  renderFiles();
+  clearXmlProgressState();
+  $("#result").classList.remove("on");
+});
 const drop = $("#drop");
 ["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{
   e.preventDefault();drop.classList.add("hot");}));
