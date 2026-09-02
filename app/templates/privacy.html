@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="{{ lang if lang in ['it','en'] else 'it' }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ site_name }} — Privacy</title>
+  <style>
+    :root{
+      --bg:#fbf9f6; --panel:#ffffff; --ink:#16181d; --muted:#5d6470; --line:#e3ded6;
+      --accent:#0f6b6f; --accent-ink:#0a4d50; --accent-soft:#e6f1f1;
+      --ok:#1c6b3f; --warn:#8a5a00; --bad:#a32219; --radius:14px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    .wrap{max-width:900px;margin:0 auto;padding:0 20px}
+    a{color:var(--accent-ink)}
+    header{border-bottom:1px solid var(--line);background:var(--panel)}
+    .bar{display:flex;align-items:center;justify-content:space-between;padding:14px 0}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:700}
+    .mark{width:26px;height:26px;border-radius:7px;background:var(--accent);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
+    .lang{display:flex;gap:4px;border:1px solid var(--line);border-radius:999px;padding:2px}
+    .lang a{padding:5px 10px;border-radius:999px;text-decoration:none;color:var(--muted)}
+    .lang a.active{background:var(--accent);color:#fff}
+    main{padding:40px 0 60px}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:26px 26px 18px;box-shadow:0 1px 2px rgba(16,18,20,.05),0 8px 28px rgba(16,18,20,.06)}
+    h1,h2,h3{line-height:1.25;letter-spacing:-.01em;margin:0 0 .7em}
+    h1{font-size:clamp(28px,4vw,44px)}
+    h2{font-size:22px;margin-top:1.3em}
+    p,li{color:var(--ink)}
+    ul{padding-left:1.2em}
+    .muted{color:var(--muted)}
+    .meta{margin-top:18px;padding-top:12px;border-top:1px solid var(--line);font-size:14px;color:var(--muted)}
+    footer{border-top:1px solid var(--line);padding:26px 0 44px;color:var(--muted);font-size:14px}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap bar">
+      <div class="brand"><span class="mark">SP</span>{{ site_name }}</div>
+      <div class="lang" aria-label="Language switcher">
+        <a href="/privacy?lang=it" class="{{ 'active' if lang == 'it' else '' }}">IT</a>
+        <a href="/privacy?lang=en" class="{{ 'active' if lang == 'en' else '' }}">EN</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="card">
+      {% if lang == 'en' %}
+        <h1>Privacy Policy</h1>
+        <p class="muted">This page describes how this service handles the data it processes for XML validation, XML generation, and contact requests, in a way consistent with the principles of the GDPR and Italian privacy law.</p>
+
+        <h2>1. What data is processed</h2>
+        <p>We process the data you explicitly upload to the service, such as XML exports, CSV or Excel files, and the information you provide in the contact form (name, email, category, and message).</p>
+        <p>We also process limited aggregate usage metrics, such as counts of site visits and actions, without storing the content of uploaded files or guest personal data.</p>
+
+        <h2>2. Purpose of processing</h2>
+        <ul>
+          <li>To validate and merge XML files for the SPOT submission workflow.</li>
+          <li>To generate XML from CSV or Excel files when requested.</li>
+          <li>To send contact-form messages by email to the configured recipient address.</li>
+          <li>To monitor aggregate usage trends in a privacy-friendly way.</li>
+        </ul>
+
+        <h2>3. Where data is stored</h2>
+        <p>Uploaded XML, CSV and Excel files are processed in memory during the request and are not permanently stored on the server. They are discarded once the response is generated.</p>
+        <p>Temporary browser-side state such as language preference or mapping selections may be stored locally in the browser for usability, but no uploaded file content is stored there permanently.</p>
+
+        <h2>4. Email contact form</h2>
+        <p>The contact form sends a message to a configured Gmail SMTP recipient. The message is used only to respond to the request and is not retained as a public contact list or directory.</p>
+
+        <h2>5. Metrics and statistics</h2>
+        <p>Aggregate counters are kept for operational monitoring only. We do not store raw uploaded XML/CSV files, guest names, or personal accommodation data in the metrics system.</p>
+
+        <h2>6. Your rights</h2>
+        <p>In accordance with the GDPR and Italian privacy law, you may ask for access, correction, deletion, or limitation of processing of personal data that you have provided through the contact form or other direct interaction with this service. Please contact the site owner using the contact form if you wish to exercise these rights.</p>
+
+        <h2>7. Data controller</h2>
+        <p>Responsibility for processing is limited to the operator of this website and the configured email recipient(s). This service is not a public authority or institutional platform and is intended for operational support of the SPOT XML workflow.</p>
+      {% else %}
+        <h1>Privacy</h1>
+        <p class="muted">Questa pagina spiega come il servizio gestisce i dati elaborati per la validazione XML, la generazione XML e le richieste di contatto, in linea con i principi del GDPR e della normativa privacy italiana.</p>
+
+        <h2>1. Quali dati vengono trattati</h2>
+        <p>Trattiamo i dati che invii esplicitamente al servizio, come esportazioni XML, file CSV o Excel, e le informazioni che fornisci nel modulo di contatto (nome, email, categoria e messaggio).</p>
+        <p>Trattiamo anche metriche aggregate di utilizzo, come conteggi di visite e azioni, senza memorizzare il contenuto dei file caricati o dati personali degli ospiti.</p>
+
+        <h2>2. Finalità del trattamento</h2>
+        <ul>
+          <li>Validare e unire file XML per il flusso di invio a SPOT.</li>
+          <li>Generare XML da file CSV o Excel su richiesta.</li>
+          <li>Inviare le richieste del modulo di contatto tramite email al destinatario configurato.</li>
+          <li>Monitorare l’uso del servizio in modo aggregato e rispettoso della privacy.</li>
+        </ul>
+
+        <h2>3. Dove sono conservati i dati</h2>
+        <p>I file XML, CSV ed Excel caricati vengono elaborati in memoria durante la richiesta e non vengono salvati permanentemente sul server. Vengono scartati non appena la risposta è pronta.</p>
+        <p>Lo stato temporaneo del browser, come la preferenza di lingua o le selezioni di mappatura, può essere salvato localmente per migliorare l’esperienza utente, ma non viene conservato permanentemente il contenuto dei file caricati.</p>
+
+        <h2>4. Modulo di contatto</h2>
+        <p>Il modulo di contatto invia il messaggio a un indirizzo email configurato tramite Gmail SMTP. Il testo viene usato solo per rispondere alla richiesta e non viene mantenuto come elenco contatti pubblico o come directory aziendale.</p>
+
+        <h2>5. Metriche e statistiche</h2>
+        <p>Vengono conservati solo contatori aggregati per finalità operative. Non memorizziamo file XML/CSV grezzi, nomi degli ospiti o dati personali di struttura nelle metriche.</p>
+
+        <h2>6. Diritti dell’interessato</h2>
+        <p>Ai sensi del GDPR e della normativa privacy italiana, puoi richiedere l’accesso, la correzione, la cancellazione o la limitazione del trattamento dei dati personali eventualmente forniti tramite il modulo di contatto o altre interazioni dirette con il servizio. Per esercitare tali diritti, contatta il proprietario del sito tramite il modulo dedicato.</p>
+
+        <h2>7. Titolare del trattamento</h2>
+        <p>La responsabilità del trattamento è del gestore del sito e del/i destinatario/i email configurati. Il servizio non è un ente pubblico né una piattaforma istituzionale ed è dedicato al supporto operativo del flusso XML SPOT.</p>
+      {% endif %}
+
+      <div class="meta">
+        <a href="/">← {{ 'Back to home' if lang == 'en' else 'Torna alla home' }}</a>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <p>{{ site_name }} — {{ 'Privacy notice' if lang == 'en' else 'Informativa privacy' }}</p>
+    </div>
+  </footer>
+</body>
+</html>

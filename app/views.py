@@ -151,6 +151,14 @@ def index():
     )
 
 
+@bp.get("/privacy")
+def privacy():
+    lang = (request.args.get("lang") or "it").strip().lower()
+    if lang not in {"it", "en"}:
+        lang = "it"
+    return render_template("privacy.html", site_name=current_app.config["SITE_NAME"], lang=lang)
+
+
 @bp.get("/healthz")
 def healthz():
     return jsonify(status="ok")
