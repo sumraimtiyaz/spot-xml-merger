@@ -49,12 +49,6 @@ docker build -t unisci-spot .
 docker run -p 8000:8000 --env-file .env unisci-spot
 ```
 
-The image runs gunicorn as a non-root user with a healthcheck on `/healthz`.
-There is no database, no queue, no persistent volume — the service holds no
-state at all, so it scales by running more copies and costs almost nothing
-idle. Any container host works: Fly.io, Railway, Render, Hetzner + Caddy, a
-€5 VPS.
-
 Behind a reverse proxy, keep `TRUST_PROXY_HEADER=1` so rate limiting sees real
 client addresses, and terminate TLS at the proxy.
 
